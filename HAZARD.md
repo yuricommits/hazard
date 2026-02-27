@@ -110,7 +110,7 @@ Avoids flat message table. Scales cleanly.
 
 ### Auth Flow
 - Supabase Auth (email + OAuth)
-- Session managed server-side via Next.js middleware
+- Session managed server-side via Next.js proxy (proxy.ts, exported as `proxy`)
 - Row Level Security (RLS) on all Supabase tables
 
 ### Real-time Strategy
@@ -218,7 +218,7 @@ hazard/
 
 ---
 
-## DATABASE SCHEMA (PLANNED — NOT BUILT YET)
+## DATABASE SCHEMA (DONE ✓)
 
 ### Tables
 - `profiles` — extends Supabase auth.users
@@ -247,9 +247,9 @@ hazard/
 - [x] Migration generated and pushed to Supabase
 
 ### Next Up
-- [ ] Drizzle client setup (src/lib/db/index.ts)
-- [ ] TypeScript types (src/types/index.ts)
 - [ ] Authentication (sign up, sign in, sign out)
+- [ ] shadcn/ui setup
+- [ ] Login and signup pages
 
 ---
 
