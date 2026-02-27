@@ -39,6 +39,7 @@ Hazard is a powerful developer-first chat application. It competes directly with
 - **Anthropic Claude API** — Hazard AI brain
 
 ### Developer Experience
+- **Drizzle ORM** — type-safe database schema and queries
 - **Zod** — schema validation (forms → API → database)
 - **Zustand** — lightweight client state
 - **React Hook Form** — form handling
