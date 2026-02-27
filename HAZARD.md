@@ -9,8 +9,8 @@
 
 Hazard is a powerful developer-first chat application. It competes directly with Linear, Vercel, GitHub, and Slack. Built for developers who have taste — fast, opinionated, and beautiful. Every decision should feel like it was made by a world-class design team.
 
-**Developer:** Kim (learning, needs step-by-step explanation)  
-**Assistant:** Claude (explains everything, one file at a time, no assumptions)  
+**Developer:** Kim (learning, needs step-by-step explanation) 
+**Assistant:** Claude (explains everything, one file at a time, no assumptions) 
 **Rule:** One file, fully understood, before moving to the next.
 
 ---
@@ -242,15 +242,14 @@ hazard/
 - [x] Supabase project created (free tier, RLS enabled)
 - [x] Vercel project created and connected to GitHub
 - [x] .env.local configured with Supabase credentials
-
-### In Progress
-- [ ] Architecture finalization
-- [ ] Database schema design
+- [x] Drizzle ORM installed and configured
+- [x] Database schema written (9 tables)
+- [x] Migration generated and pushed to Supabase
 
 ### Next Up
-- [ ] Install and configure all dependencies
-- [ ] Supabase project setup
-- [ ] Database schema (`supabase/schema.sql`)
+- [ ] Drizzle client setup (src/lib/db/index.ts)
+- [ ] TypeScript types (src/types/index.ts)
+- [ ] Authentication (sign up, sign in, sign out)
 
 ---
 
@@ -267,8 +266,8 @@ hazard/
 
 | Session | What We Did |
 |---------|-------------|
-| 01 | Project vision, tech stack locked, Next.js 15 scaffolded, HAZARD.md created, GitHub + Supabase + Vercel set up, credentials secured | 
-|
+| 01 | Project vision, tech stack locked, Next.js 15 scaffolded, HAZARD.md created, GitHub + Supabase + Vercel set up, credentials secured |
+| 02 | Installed dependencies, Supabase client setup (browser, server, proxy), Drizzle ORM configured, full database schema written and migrated |
 
 ---
 
