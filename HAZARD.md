@@ -237,6 +237,10 @@ hazard/
 ### Done
 - [x] Next.js 15 scaffolded (App Router, TypeScript, Tailwind)
 - [x] HAZARD.md created
+- [x] GitHub repository created (private)
+- [x] Supabase project created (free tier, RLS enabled)
+- [x] Vercel project created and connected to GitHub
+- [x] .env.local configured with Supabase credentials
 
 ### In Progress
 - [ ] Architecture finalization
@@ -262,9 +266,10 @@ hazard/
 
 | Session | What We Did |
 |---------|-------------|
-| 01 | Project vision, tech stack locked, Next.js 15 scaffolded, HAZARD.md created |
+| 01 | Project vision, tech stack locked, Next.js 15 scaffolded, HAZARD.md created, GitHub + Supabase + Vercel set up, credentials secured | 
+|
 
 ---
 
-> Last updated: Session 01  
+> Last updated: Session 01
 > Next session: Start with dependency installation + Supabase schema design
