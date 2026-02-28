@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import MessageContent from "@/components/chat/message-content";
 
 type Profile = {
   id: string;
@@ -108,9 +109,7 @@ export default function MessageFeed({
                 })}
               </span>
             </div>
-            <p className="text-sm text-zinc-300 wrap-break-word">
-              {message.content}
-            </p>
+            <MessageContent content={message.content} />
           </div>
         </div>
       ))}

@@ -49,11 +49,15 @@ export default function MessageComposer({
       <div className="border border-zinc-800 rounded-lg px-4 py-3 focus-within:border-zinc-700 transition-colors">
         <textarea
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            e.target.style.height = "auto";
+            e.target.style.height = `${e.target.scrollHeight}px`;
+          }}
           onKeyDown={handleKeyDown}
           placeholder={`Message #${channelName}`}
           rows={1}
-          className="w-full bg-transparent text-sm text-zinc-50 placeholder:text-zinc-600 resize-none outline-none"
+          className="w-full bg-transparent text-sm text-zinc-50 placeholder:text-zinc-600 resize-none outline-none max-h-48 overflow-y-auto"
         />
       </div>
       <p className="text-[10px] text-zinc-600 mt-1.5 px-1">
@@ -69,3 +73,8 @@ export default function MessageComposer({
 // message.trim() — never sends empty or whitespace-only messages
 // router.refresh() — after sending, refreshes the page to show the new message
 // focus-within — the border subtly brightens when the textarea is focused
+
+// What changed:
+
+// On every keystroke, height resets to auto then grows to fit the content
+// max-h-48 caps it at 192px — after that it scrolls instead of growing forever
