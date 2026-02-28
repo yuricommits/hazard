@@ -197,6 +197,10 @@ hazard/
 - [x] Auto-scroll to bottom on new messages
 - [x] Sign out button
 - [x] Deployed to Vercel (live in production)
+- [x] Markdown rendering
+- [x] Syntax highlighted code blocks (vscDarkPlus theme)
+- [x] Auto-expanding composer
+- [x] Threads with real-time replies
 - [ ] Threads (reply to message, persistent)
 - [ ] Code blocks (syntax highlighted, copy button)
 - [ ] Markdown rendering
@@ -255,7 +259,7 @@ hazard/
 | 05 | Channel creation, sidebar channel list, channel page layout, composer placeholder |
 | 06 | Message composer, real-time feed, Supabase Realtime enabled, messages working across tabs |
 | 07 | Active channel highlight, sign out button, auto-scroll, deployed to Vercel |
-
+| 08 | Markdown, syntax highlighting, auto-expanding composer, threads with real-time replies |
 ---
 
 > Last updated: Session 07
