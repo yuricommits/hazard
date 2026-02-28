@@ -245,11 +245,16 @@ hazard/
 - [x] Drizzle ORM installed and configured
 - [x] Database schema written (9 tables)
 - [x] Migration generated and pushed to Supabase
+- [x] Drizzle client setup (src/lib/db/index.ts)
+- [x] TypeScript types (src/types/index.ts)
+- [x] Authentication pages (login, signup, verify)
+- [x] Supabase auth trigger for profile creation
+- [x] Route protection via proxy.ts
 
 ### Next Up
-- [ ] Authentication (sign up, sign in, sign out)
-- [ ] shadcn/ui setup
-- [ ] Login and signup pages
+- [ ] shadcn/ui theme customization
+- [ ] App layout (3 column)
+- [ ] Workspace creation flow
 
 ---
 
@@ -268,7 +273,7 @@ hazard/
 |---------|-------------|
 | 01 | Project vision, tech stack locked, Next.js 15 scaffolded, HAZARD.md created, GitHub + Supabase + Vercel set up, credentials secured |
 | 02 | Installed dependencies, Supabase client setup (browser, server, proxy), Drizzle ORM configured, full database schema written and migrated |
-
+| 03 | Auth pages built, Supabase trigger for profiles, route protection working, full auth flow tested |
 ---
 
 > Last updated: Session 01
