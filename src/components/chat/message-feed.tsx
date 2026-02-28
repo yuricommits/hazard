@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import MessageContent from "@/components/chat/message-content";
+import { useThreadStore } from "@/stores/thread-store";
+import { getOrCreateThread } from "@/lib/supabase/threads";
 
 type Profile = {
   id: string;
@@ -33,7 +35,19 @@ export default function MessageFeed({
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const bottomRef = useRef<HTMLDivElement>(null);
-  // const supabase = createClient();
+  const { openThread } = useThreadStore();
+
+  async function handleReply(messageId: string) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const threadId = await getOrCreateThread(messageId, user.id);
+    if (threadId) {
+      openThread(threadId, messageId);
+    }
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "instant" });
@@ -54,7 +68,7 @@ export default function MessageFeed({
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `channel_id=eq.${channelId}`,
+          filter: `channel_id=eq.${channelId}&thread_id=is.null`,
         },
         async (payload) => {
           const { data: profile } = await supabase
@@ -90,8 +104,17 @@ export default function MessageFeed({
       {messages.map((message) => (
         <div
           key={message.id}
-          className="flex items-start gap-3 px-2 py-1 rounded-lg hover:bg-zinc-900/50 group"
+          className="flex items-start gap-3 px-2 py-1 rounded-lg hover:bg-zinc-900/50 group relative"
         >
+          {/* Hover actions */}
+          <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md px-1 py-0.5">
+            <button
+              onClick={() => handleReply(message.id)}
+              className="text-[11px] text-zinc-400 hover:text-zinc-50 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors"
+            >
+              Reply
+            </button>
+          </div>
           <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
             {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
           </div>

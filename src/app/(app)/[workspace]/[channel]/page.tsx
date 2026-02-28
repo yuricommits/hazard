@@ -44,7 +44,10 @@ export default async function ChannelPage({
     .from("messages")
     .select("*, profiles(id, username, display_name, avatar_url)")
     .eq("channel_id", channel.id)
+    .is("thread_id", null)
     .order("created_at", { ascending: true });
+
+  // What changed: .is("thread_id", null) — only fetch messages that don't belong to a thread. Replies stay in the thread panel only, main feed stays clean.
 
   return (
     <div className="flex flex-col h-full">

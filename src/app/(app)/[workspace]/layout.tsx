@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import CreateChannelButton from "@/components/sidebar/create-channel-button";
 import ChannelList from "@/components/sidebar/channel-list";
 import SignOutButton from "@/components/sidebar/sign-out-button";
+import ThreadPanel from "@/components/chat/thread-panel";
 
 export default async function WorkspaceLayout({
   children,
@@ -66,7 +67,10 @@ export default async function WorkspaceLayout({
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
+      <main className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden">{children}</div>
+        <ThreadPanel />
+      </main>
     </div>
   );
 }
@@ -78,3 +82,5 @@ export default async function WorkspaceLayout({
 // If workspace doesn't exist, redirects to create one
 // Renders the 3 column shell — sidebar on the left, main content on the right
 // Channels list is empty for now, we'll fill it in next
+
+// What changed: The main area now has two children side by side — the channel content on the left and the thread panel on the right. The thread panel returns null when no thread is open so it takes up no space until needed.
