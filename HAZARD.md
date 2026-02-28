@@ -257,14 +257,16 @@ hazard/
 - [x] RLS policies for workspaces and workspace_members
 - [x] App layout shell (sidebar + main panel)
 - [x] Smart home page redirect (workspace-aware)
+- [x] Channel creation with dialog
+- [x] Channel list in sidebar
+- [x] Channel page with header and empty state
+- [x] Composer placeholder
 
 ### Next Up
-- [ ] Redirect to existing workspace from home page (fix)
-- [ ] Channel creation
-- [ ] Channel list in sidebar
-- [ ] Channel page layout
-- [ ] Message feed
-- [ ] Move all SQL policies and triggers to supabase/policies.sql
+- [ ] Message composer (send messages)
+- [ ] Message feed (display messages)
+- [ ] Real-time messages via Supabase Realtime
+- [ ] RLS policies tightened before ship
 
 ---
 
@@ -285,6 +287,7 @@ hazard/
 | 02 | Installed dependencies, Supabase client setup (browser, server, proxy), Drizzle ORM configured, full database schema written and migrated |
 | 03 | Auth pages built, Supabase trigger for profiles, route protection working, full auth flow tested |
 | 04 | Workspace creation, RLS policies, app layout shell, smart home redirect |
+| 05 | Channel creation, sidebar channel list, channel page layout, composer placeholder |
 ---
 
 > Last updated: Session 01
