@@ -201,6 +201,11 @@ hazard/
 - [x] Syntax highlighted code blocks (vscDarkPlus theme)
 - [x] Auto-expanding composer
 - [x] Threads with real-time replies
+- [x] Markdown rendering
+- [x] Syntax highlighted code blocks (vscDarkPlus)
+- [x] Auto-expanding composer
+- [x] Threads with real-time replies
+- [x] Emoji reactions with picker
 - [ ] Threads (reply to message, persistent)
 - [ ] Code blocks (syntax highlighted, copy button)
 - [ ] Markdown rendering
@@ -213,6 +218,16 @@ hazard/
 - [ ] File uploads
 - [ ] User presence (online/offline/away)
 - [ ] Typing indicators
+
+---
+
+### Next Up
+- [ ] Reactions real-time update (currently needs page refresh)
+- [ ] Thread reply count indicator on messages
+- [ ] Typing indicators
+- [ ] User presence (online/offline)
+- [ ] Hazard AI integration
+- [ ] UI polish pass with v0 design
 
 ---
 
@@ -259,8 +274,9 @@ hazard/
 | 05 | Channel creation, sidebar channel list, channel page layout, composer placeholder |
 | 06 | Message composer, real-time feed, Supabase Realtime enabled, messages working across tabs |
 | 07 | Active channel highlight, sign out button, auto-scroll, deployed to Vercel |
-| 08 | Markdown, syntax highlighting, auto-expanding composer, threads with real-time replies |
+| 08 | Markdown, syntax highlighting, auto-expanding composer, threads with real-time replies, emoji reactions |
+
 ---
 
-> Last updated: Session 07
+> Last updated: Session 08
 > Next session: Auto-scroll, deploy to Vercel, then UI polish

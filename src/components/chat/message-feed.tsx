@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import MessageContent from "@/components/chat/message-content";
 import { useThreadStore } from "@/stores/thread-store";
 import { getOrCreateThread } from "@/lib/supabase/threads";
+import ReactionButton from "@/components/chat/reaction-button";
 
 type Profile = {
   id: string;
@@ -13,13 +14,21 @@ type Profile = {
   avatar_url: string | null;
 };
 
+type Reaction = {
+  id: string;
+  emoji: string;
+  user_id: string;
+};
+
 type Message = {
   id: string;
   content: string;
   created_at: string;
   user_id: string;
   channel_id: string;
+  thread_id: string | null;
   profiles: Profile | null;
+  reactions: Reaction[];
 };
 
 const supabase = createClient();
@@ -28,10 +37,12 @@ export default function MessageFeed({
   channelId,
   channelName,
   initialMessages,
+  currentUserId,
 }: {
   channelId: string;
   channelName: string;
   initialMessages: Message[];
+  currentUserId: string;
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -133,6 +144,13 @@ export default function MessageFeed({
               </span>
             </div>
             <MessageContent content={message.content} />
+            <div className="hidden group-hover:block">
+              <ReactionButton
+                messageId={message.id}
+                reactions={message.reactions ?? []}
+                currentUserId={currentUserId}
+              />
+            </div>
           </div>
         </div>
       ))}

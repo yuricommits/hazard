@@ -42,7 +42,9 @@ export default async function ChannelPage({
 
   const { data: messages } = await supabase
     .from("messages")
-    .select("*, profiles(id, username, display_name, avatar_url)")
+    .select(
+      "*, profiles(id, username, display_name, avatar_url), reactions(id, emoji, user_id)",
+    )
     .eq("channel_id", channel.id)
     .is("thread_id", null)
     .order("created_at", { ascending: true });
@@ -60,6 +62,7 @@ export default async function ChannelPage({
         channelId={channel.id}
         channelName={channel.name}
         initialMessages={messages ?? []}
+        currentUserId={user.id}
       />
 
       <MessageComposer channelId={channel.id} channelName={channel.name} />
