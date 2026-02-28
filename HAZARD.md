@@ -9,8 +9,8 @@
 
 Hazard is a powerful developer-first chat application. It competes directly with Linear, Vercel, GitHub, and Slack. Built for developers who have taste — fast, opinionated, and beautiful. Every decision should feel like it was made by a world-class design team.
 
-**Developer:** Kim (learning, needs step-by-step explanation) 
-**Assistant:** Claude (explains everything, one file at a time, no assumptions) 
+**Developer:** Kim (learning, needs step-by-step explanation)  
+**Assistant:** Claude (explains everything, one file at a time, no assumptions)  
 **Rule:** One file, fully understood, before moving to the next.
 
 ---
@@ -21,38 +21,38 @@ Hazard is a powerful developer-first chat application. It competes directly with
 - **Next.js 15** — App Router, Server Components, Server Actions
 - **TypeScript** — strict mode, non-negotiable
 - **Tailwind CSS** — utility-first styling
-- **shadcn/ui** — component primitives, fully owned
-- **Framer Motion** — micro-interactions and animations
-- **JetBrains Mono** — font for all code rendering
+- **shadcn/ui** — component primitives, fully owned (zinc theme, New York style)
+- **Framer Motion** — micro-interactions and animations (not yet implemented)
+- **JetBrains Mono** — font for all code rendering (not yet implemented)
 
 ### Backend & Infrastructure
 - **Supabase** — entire backend:
-  - PostgreSQL (primary database)
-  - Auth (authentication + session management)
-  - Realtime (live messages, presence, typing indicators)
-  - Storage (file and image uploads)
-- **Upstash Redis** — rate limiting and caching
-- **Cloudflare R2** — CDN for media uploads
+  - PostgreSQL (primary database, 9 tables)
+  - Auth (email auth, no email confirmation in dev)
+  - Realtime (live messages working across tabs)
+  - Storage (not yet implemented)
+- **Upstash Redis** — rate limiting and caching (not yet implemented)
+- **Cloudflare R2** — CDN for media uploads (not yet implemented)
 
 ### AI
-- **Vercel AI SDK** — streaming, model switching, tool calling
-- **Anthropic Claude API** — Hazard AI brain
+- **Vercel AI SDK** — streaming, model switching, tool calling (not yet implemented)
+- **Anthropic Claude API** — Hazard AI brain (not yet implemented)
 
 ### Developer Experience
 - **Drizzle ORM** — type-safe database schema and queries
 - **Zod** — schema validation (forms → API → database)
-- **Zustand** — lightweight client state
+- **Zustand** — lightweight client state (not yet implemented)
 - **React Hook Form** — form handling
-- **nuqs** — URL state (filters, search, threads)
+- **nuqs** — URL state management (not yet implemented)
 
 ### Code Quality
 - **ESLint + Prettier** — consistent code style
-- **Husky** — pre-commit hooks
-- **Commitlint** — conventional commits
+- **Husky** — pre-commit hooks (not yet implemented)
+- **Commitlint** — conventional commits (not yet implemented)
 
 ### Deployment
-- **Vercel** — frontend + edge functions
-- **Supabase Cloud** — managed backend
+- **Vercel** — frontend + edge functions (project created, not yet deployed)
+- **Supabase Cloud** — managed backend (live)
 
 ---
 
@@ -76,7 +76,7 @@ Diff remove:      red-950 bg · red-400 text
 ```
 
 ### Typography
-- UI: Next.js font (TBD — not Inter, something with character)
+- UI: TBD — not Inter, something with character
 - Code: JetBrains Mono
 
 ### Design References
@@ -101,44 +101,100 @@ Diff remove:      red-950 bg · red-400 text
 ```
 Workspaces → Channels → Messages → Threads → Replies
 ```
-Avoids flat message table. Scales cleanly.
 
-### Layout
+### Folder Structure (Current)
 ```
-[Left Sidebar 240px] [Middle Panel flex-1] [Right Sidebar 280px collapsible]
+hazard/
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── login/page.tsx
+│   │   │   ├── signup/page.tsx
+│   │   │   └── verify/page.tsx
+│   │   ├── (app)/
+│   │   │   ├── [workspace]/
+│   │   │   │   ├── [channel]/
+│   │   │   │   │   └── page.tsx
+│   │   │   │   ├── layout.tsx
+│   │   │   │   └── page.tsx
+│   │   │   └── create-workspace/
+│   │   │       └── page.tsx
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components/
+│   │   ├── ui/                     # shadcn/ui primitives
+│   │   ├── chat/
+│   │   │   ├── message-feed.tsx    # real-time message feed
+│   │   │   └── message-composer.tsx # send messages
+│   │   └── sidebar/
+│   │       ├── channel-list.tsx    # active channel highlight
+│   │       ├── create-channel-button.tsx
+│   │       └── sign-out-button.tsx
+│   ├── lib/
+│   │   ├── supabase/
+│   │   │   ├── client.ts           # browser client
+│   │   │   ├── server.ts           # server client
+│   │   │   └── middleware.ts       # session refresh helper
+│   │   ├── db/
+│   │   │   ├── schema.ts           # Drizzle schema (9 tables)
+│   │   │   └── index.ts            # Drizzle client
+│   │   ├── validations/
+│   │   │   └── auth.ts             # Zod schemas for auth forms
+│   │   └── utils.ts                # shadcn utility
+│   ├── types/
+│   │   └── index.ts                # TypeScript types from Drizzle
+│   └── proxy.ts                    # Next.js 16 route protection
+├── supabase/
+│   └── migrations/                 # Generated SQL migrations
+├── drizzle.config.ts
+├── HAZARD.md
+└── .env.local
 ```
 
 ### Auth Flow
-- Supabase Auth (email + OAuth)
-- Session managed server-side via Next.js proxy (proxy.ts, exported as `proxy`)
-- Row Level Security (RLS) on all Supabase tables
+- Supabase Auth (email, no confirmation in dev)
+- Database trigger auto-creates profile on signup
+- Route protection via `proxy.ts` (Next.js 16)
+- Session managed via cookies (server + browser clients)
 
 ### Real-time Strategy
-- Supabase Realtime for messages, presence, typing indicators
-- Optimistic UI everywhere — app feels faster than it is
+- Supabase Realtime enabled on messages table
+- Client subscribes to INSERT events filtered by channel_id
+- Initial messages fetched server-side, passed as props
+- New messages appended to state via Realtime subscription
 
-### File Uploads
-- Cloudflare R2 via presigned URLs
-- Supabase Storage as fallback
-- Never upload through the main server
+### RLS Policies (Current — open for dev, tighten before ship)
+- profiles: select own, update own
+- workspaces: all authenticated users (open)
+- workspace_members: all authenticated users (open)
+- channels: all authenticated users (open)
+- channel_members: all authenticated users (open)
+- messages: select/insert all, update/delete own
 
-### Rate Limiting
-- Upstash Redis on API routes
-- Protect against automated scripts
+---
 
-### Security
-- E2EE consideration for private channels (future)
-- RLS policies on every table
-- API keys never stored in messages (scrubbed or warned)
+## DATABASE SCHEMA (DONE ✓)
+
+### Tables
+- `profiles` — extends Supabase auth.users (trigger auto-creates on signup)
+- `workspaces` — top level organization unit
+- `workspace_members` — users ↔ workspaces (roles: owner, admin, member)
+- `channels` — belongs to workspace (public/private)
+- `channel_members` — users ↔ channels
+- `messages` — belongs to channel, real-time enabled
+- `threads` — belongs to a parent message
+- `reactions` — belongs to message, belongs to user
+- `files` — uploaded files/images, linked to messages
 
 ---
 
 ## KEY FEATURES (CORE — BUILD THESE FIRST)
 
-- [ ] Authentication (sign up, sign in, sign out)
-- [ ] Workspaces (create, join, switch)
-- [ ] Channels (create, browse, join)
-- [ ] Messages (send, receive, real-time)
+- [x] Authentication (sign up, sign in, sign out)
+- [x] Workspaces (create, redirect to existing)
+- [x] Channels (create, list, active highlight)
+- [x] Messages (send, receive, real-time)
+- [ ] Auto-scroll to bottom on new messages
 - [ ] Threads (reply to message, persistent)
 - [ ] Code blocks (syntax highlighted, copy button)
 - [ ] Markdown rendering
@@ -162,7 +218,7 @@ Avoids flat message table. Scales cleanly.
 - Repo-aware AI context
 - Custom bot API
 - Mobile app (React Native)
-- /ui slash command — generate UI components inline (big future feature)
+- /ui slash command — generate UI components inline
 - IDE-like environment with AI as first-class citizen (separate big project)
 - Desktop app (Electron/Tauri)
 - Notification preferences
@@ -170,112 +226,18 @@ Avoids flat message table. Scales cleanly.
 - Pinned messages
 - Channel analytics
 - Workspace billing
-
----
-
-## FOLDER STRUCTURE (PLANNED)
-
-```
-hazard/
-├── src/
-│   ├── app/                        # Next.js App Router
-│   │   ├── (auth)/                 # Auth routes group
-│   │   │   ├── login/
-│   │   │   └── signup/
-│   │   ├── (app)/                  # Main app routes group
-│   │   │   ├── [workspace]/
-│   │   │   │   ├── [channel]/
-│   │   │   │   └── layout.tsx
-│   │   │   └── layout.tsx
-│   │   ├── api/                    # API routes
-│   │   │   ├── ai/
-│   │   │   └── webhooks/
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── components/
-│   │   ├── ui/                     # shadcn/ui primitives
-│   │   ├── chat/                   # Chat-specific components
-│   │   ├── sidebar/                # Sidebar components
-│   │   ├── composer/               # Message composer
-│   │   └── shared/                 # Shared across features
-│   ├── lib/
-│   │   ├── supabase/               # Supabase clients + helpers
-│   │   ├── ai/                     # AI SDK setup
-│   │   ├── redis/                  # Upstash Redis
-│   │   └── utils.ts                # Shared utilities
-│   ├── hooks/                      # Custom React hooks
-│   ├── stores/                     # Zustand stores
-│   ├── types/                      # TypeScript types
-│   └── styles/                     # Global styles
-├── supabase/
-│   ├── schema.sql                  # Database schema
-│   ├── seed.sql                    # Dev seed data
-│   └── migrations/                 # Schema migrations
-├── HAZARD.md                       # THIS FILE
-├── FEATURES.md                     # Extended feature ideas
-└── .env.local                      # Environment variables (never commit)
-```
-
----
-
-## DATABASE SCHEMA (DONE ✓)
-
-### Tables
-- `profiles` — extends Supabase auth.users
-- `workspaces` — top level organization unit
-- `workspace_members` — users ↔ workspaces (roles: owner, admin, member)
-- `channels` — belongs to workspace (public/private)
-- `channel_members` — users ↔ channels
-- `messages` — belongs to channel, optionally belongs to thread
-- `threads` — belongs to a parent message
-- `reactions` — belongs to message, belongs to user
-- `files` — uploaded files/images, linked to messages
-
----
-
-## BUILD PROGRESS
-
-## BUILD PROGRESS
-
-### Done
-- [x] Next.js 15 scaffolded (App Router, TypeScript, Tailwind)
-- [x] HAZARD.md created
-- [x] GitHub repository created (private)
-- [x] Supabase project created (free tier, RLS enabled)
-- [x] Vercel project created and connected to GitHub
-- [x] .env.local configured with Supabase credentials
-- [x] Drizzle ORM installed and configured
-- [x] Database schema written (9 tables)
-- [x] Migration generated and pushed to Supabase
-- [x] Drizzle client setup (src/lib/db/index.ts)
-- [x] TypeScript types (src/types/index.ts)
-- [x] shadcn/ui installed (zinc theme)
-- [x] Authentication pages (login, signup, verify)
-- [x] Supabase auth trigger for profile creation
-- [x] Route protection via proxy.ts
-- [x] Workspace creation page with slug auto-generation
-- [x] RLS policies for workspaces and workspace_members
-- [x] App layout shell (sidebar + main panel)
-- [x] Smart home page redirect (workspace-aware)
-- [x] Channel creation with dialog
-- [x] Channel list in sidebar
-- [x] Channel page with header and empty state
-- [x] Composer placeholder
-
-### Next Up
-- [ ] Message composer (send messages)
-- [ ] Message feed (display messages)
-- [ ] Real-time messages via Supabase Realtime
-- [ ] RLS policies tightened before ship
+- Tighten RLS policies before ship
+- Move all SQL to supabase/policies.sql
+- Enable email confirmation with Resend (production)
+- Husky + Commitlint setup
 
 ---
 
 ## OPEN QUESTIONS
 
-- Font choice for UI (not Inter — something with more character)
+- Font choice for UI (not Inter — something with character)
 - Upstash Redis free tier enough for early stage?
 - Cloudflare R2 vs Supabase Storage to start with?
-- shadcn/ui theme customization approach
 
 ---
 
@@ -288,7 +250,10 @@ hazard/
 | 03 | Auth pages built, Supabase trigger for profiles, route protection working, full auth flow tested |
 | 04 | Workspace creation, RLS policies, app layout shell, smart home redirect |
 | 05 | Channel creation, sidebar channel list, channel page layout, composer placeholder |
+| 06 | Message composer, real-time feed, Supabase Realtime enabled, messages working across tabs |
+| 07 | Active channel highlight, sign out button |
+
 ---
 
-> Last updated: Session 01
-> Next session: Start with dependency installation + Supabase schema design
+> Last updated: Session 07
+> Next session: Auto-scroll, deploy to Vercel, then UI polish

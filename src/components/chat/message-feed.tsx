@@ -35,8 +35,14 @@ export default function MessageFeed({
   // const supabase = createClient();
 
   useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "instant" });
+  }, []);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // What changed: Two separate effects now — the first one runs once on mount with instant so when you open a channel it jumps straight to the bottom without animation. The second runs every time messages change with smooth so new incoming messages scroll nicely.
 
   useEffect(() => {
     const channel = supabase

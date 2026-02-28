@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import CreateChannelButton from "@/components/sidebar/create-channel-button";
+import ChannelList from "@/components/sidebar/channel-list";
+import SignOutButton from "@/components/sidebar/sign-out-button";
 
 export default async function WorkspaceLayout({
   children,
@@ -52,21 +53,15 @@ export default async function WorkspaceLayout({
             <p className="px-2 py-1 text-[10px] font-medium text-zinc-500 uppercase tracking-widest">
               Channels
             </p>
-            {channels?.map((channel) => (
-              <Link
-                key={channel.id}
-                href={`/${slug}/${channel.name}`}
-                className="flex items-center gap-1.5 px-2 py-1 rounded text-sm text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800/50 transition-colors"
-              >
-                <span className="text-zinc-600">#</span>
-                {channel.name}
-              </Link>
-            ))}
+            <ChannelList channels={channels ?? []} workspaceSlug={slug} />
             <CreateChannelButton
               workspaceId={workspace.id}
               workspaceSlug={slug}
             />
           </div>
+        </div>
+        <div className="p-3 border-t border-zinc-800 shrink-0">
+          <SignOutButton />
         </div>
       </aside>
 
