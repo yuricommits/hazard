@@ -1,5 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 export default function MessageContent({ content }: { content: string }) {
   return (
@@ -18,14 +20,28 @@ export default function MessageContent({ content }: { content: string }) {
           <em className="italic text-zinc-300">{children}</em>
         ),
         code: ({ children, className }) => {
-          const isBlock = className?.includes("language-");
-          if (isBlock) {
+          const match = /language-(\w+)/.exec(className || "");
+          const language = match ? match[1] : null;
+
+          if (language) {
             return (
-              <code className="block bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs font-mono text-zinc-300 overflow-x-auto whitespace-pre my-1">
-                {children}
-              </code>
+              <SyntaxHighlighter
+                style={vscDarkPlus}
+                language={language}
+                PreTag="div"
+                customStyle={{
+                  margin: "4px 0",
+                  borderRadius: "8px",
+                  border: "1px solid #27272a",
+                  fontSize: "12px",
+                  background: "#09090b",
+                }}
+              >
+                {String(children).replace(/\n$/, "")}
+              </SyntaxHighlighter>
             );
           }
+
           return (
             <code className="bg-zinc-800 text-violet-300 text-xs font-mono px-1.5 py-0.5 rounded">
               {children}
@@ -65,11 +81,10 @@ export default function MessageContent({ content }: { content: string }) {
   );
 }
 
-// What this does:
+// What changed:
 
-// Each markdown element gets its own styled component matching our design system
-// Inline code gets violet text on zinc background — matches our color meaning
-// Block code gets a dark bordered box with monospace font
-// Links open in new tab with noopener noreferrer for security
-// Blockquotes get a left border accent
-// GFM adds support for task lists, tables, strikethrough
+// SyntaxHighlighter from Prism replaces the plain code block
+// oneDark theme — dark, professional, matches our zinc palette
+// Language is extracted from the markdown fence (```javascript) and passed to the highlighter
+// Custom styles override the default background with our zinc-950 and add our border style
+// Inline code stays the same — only fenced code blocks get syntax highlighting
