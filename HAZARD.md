@@ -235,6 +235,8 @@ hazard/
 
 ## BUILD PROGRESS
 
+## BUILD PROGRESS
+
 ### Done
 - [x] Next.js 15 scaffolded (App Router, TypeScript, Tailwind)
 - [x] HAZARD.md created
@@ -247,14 +249,22 @@ hazard/
 - [x] Migration generated and pushed to Supabase
 - [x] Drizzle client setup (src/lib/db/index.ts)
 - [x] TypeScript types (src/types/index.ts)
+- [x] shadcn/ui installed (zinc theme)
 - [x] Authentication pages (login, signup, verify)
 - [x] Supabase auth trigger for profile creation
 - [x] Route protection via proxy.ts
+- [x] Workspace creation page with slug auto-generation
+- [x] RLS policies for workspaces and workspace_members
+- [x] App layout shell (sidebar + main panel)
+- [x] Smart home page redirect (workspace-aware)
 
 ### Next Up
-- [ ] shadcn/ui theme customization
-- [ ] App layout (3 column)
-- [ ] Workspace creation flow
+- [ ] Redirect to existing workspace from home page (fix)
+- [ ] Channel creation
+- [ ] Channel list in sidebar
+- [ ] Channel page layout
+- [ ] Message feed
+- [ ] Move all SQL policies and triggers to supabase/policies.sql
 
 ---
 
@@ -274,6 +284,7 @@ hazard/
 | 01 | Project vision, tech stack locked, Next.js 15 scaffolded, HAZARD.md created, GitHub + Supabase + Vercel set up, credentials secured |
 | 02 | Installed dependencies, Supabase client setup (browser, server, proxy), Drizzle ORM configured, full database schema written and migrated |
 | 03 | Auth pages built, Supabase trigger for profiles, route protection working, full auth flow tested |
+| 04 | Workspace creation, RLS policies, app layout shell, smart home redirect |
 ---
 
 > Last updated: Session 01

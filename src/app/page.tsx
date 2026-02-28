@@ -14,7 +14,7 @@ export default async function HomePage() {
 
   const { data: membership } = await supabase
     .from("workspace_members")
-    .select("workspaces(slug)")
+    .select("workspace_id")
     .eq("user_id", user.id)
     .limit(1)
     .single();
@@ -23,8 +23,19 @@ export default async function HomePage() {
     redirect("/create-workspace");
   }
 
-  const workspace = membership.workspaces as unknown as { slug: string }[];
-  redirect(`/${workspace[0].slug}`);
+  const { data: workspace } = await supabase
+    .from("workspaces")
+    .select("slug")
+    .eq("id", membership.workspace_id)
+    .single();
+
+  if (!workspace) {
+    redirect("/create-workspace");
+  }
+
+  redirect(`/${workspace.slug}`);
 }
 
 // What changed: Now it checks if the user already belongs to a workspace and redirects there directly. Only sends to /create-workspace if they have none.
+
+// What changed: Instead of a join, two separate queries — first get the workspace_id from membership, then get the slug from workspaces. Simpler and no type issues. 🤙
