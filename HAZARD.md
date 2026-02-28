@@ -201,33 +201,20 @@ hazard/
 - [x] Syntax highlighted code blocks (vscDarkPlus theme)
 - [x] Auto-expanding composer
 - [x] Threads with real-time replies
-- [x] Markdown rendering
-- [x] Syntax highlighted code blocks (vscDarkPlus)
-- [x] Auto-expanding composer
-- [x] Threads with real-time replies
-- [x] Emoji reactions with picker
-- [ ] Threads (reply to message, persistent)
-- [ ] Code blocks (syntax highlighted, copy button)
-- [ ] Markdown rendering
-- [ ] Reactions (emoji, count, who reacted)
-- [ ] Slash commands (/deploy, /run, /pr, /ai)
-- [ ] Cmd+K search
-- [ ] Keyboard-first navigation
-- [ ] Git bot integration (PR, CI/CD notifications)
-- [ ] Hazard AI (inline, streaming, context-aware)
-- [ ] File uploads
-- [ ] User presence (online/offline/away)
-- [ ] Typing indicators
-
----
+- [x] Emoji reactions with optimistic updates
 
 ### Next Up
-- [ ] Reactions real-time update (currently needs page refresh)
+- [ ] Reactions real-time (no page refresh needed)
 - [ ] Thread reply count indicator on messages
 - [ ] Typing indicators
 - [ ] User presence (online/offline)
 - [ ] Hazard AI integration
 - [ ] UI polish pass with v0 design
+- [ ] Slash commands (/deploy, /run, /pr, /ai)
+- [ ] Cmd+K search
+- [ ] Keyboard-first navigation
+- [ ] Git bot integration
+- [ ] File uploads
 
 ---
 
@@ -274,9 +261,13 @@ hazard/
 | 05 | Channel creation, sidebar channel list, channel page layout, composer placeholder |
 | 06 | Message composer, real-time feed, Supabase Realtime enabled, messages working across tabs |
 | 07 | Active channel highlight, sign out button, auto-scroll, deployed to Vercel |
-| 08 | Markdown, syntax highlighting, auto-expanding composer, threads with real-time replies, emoji reactions |
+| 08 | Markdown, syntax highlighting, auto-expanding composer, threads, emoji reactions with optimistic updates |
 
 ---
 
 > Last updated: Session 08
-> Next session: Auto-scroll, deploy to Vercel, then UI polish
+> Next session: 
+- Reactions real-time (no refresh needed)
+- Thread reply count on messages
+- Typing indicators
+- Then Hazard AI
