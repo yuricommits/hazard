@@ -194,7 +194,9 @@ hazard/
 - [x] Workspaces (create, redirect to existing)
 - [x] Channels (create, list, active highlight)
 - [x] Messages (send, receive, real-time)
-- [ ] Auto-scroll to bottom on new messages
+- [x] Auto-scroll to bottom on new messages
+- [x] Sign out button
+- [x] Deployed to Vercel (live in production)
 - [ ] Threads (reply to message, persistent)
 - [ ] Code blocks (syntax highlighted, copy button)
 - [ ] Markdown rendering
@@ -230,6 +232,7 @@ hazard/
 - Move all SQL to supabase/policies.sql
 - Enable email confirmation with Resend (production)
 - Husky + Commitlint setup
+- Custom scrollbar styling (hide default, subtle custom)
 
 ---
 
@@ -251,7 +254,7 @@ hazard/
 | 04 | Workspace creation, RLS policies, app layout shell, smart home redirect |
 | 05 | Channel creation, sidebar channel list, channel page layout, composer placeholder |
 | 06 | Message composer, real-time feed, Supabase Realtime enabled, messages working across tabs |
-| 07 | Active channel highlight, sign out button |
+| 07 | Active channel highlight, sign out button, auto-scroll, deployed to Vercel |
 
 ---
 
