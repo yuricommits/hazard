@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function MessageComposer({
@@ -13,7 +12,6 @@ export default function MessageComposer({
 }) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const router = useRouter();
   const supabase = createClient();
 
   async function sendMessage() {
@@ -34,7 +32,6 @@ export default function MessageComposer({
 
     if (!error) {
       setMessage("");
-      router.refresh();
     }
 
     setSending(false);
