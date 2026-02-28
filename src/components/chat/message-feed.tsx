@@ -144,13 +144,11 @@ export default function MessageFeed({
               </span>
             </div>
             <MessageContent content={message.content} />
-            <div className="hidden group-hover:block">
-              <ReactionButton
-                messageId={message.id}
-                reactions={message.reactions ?? []}
-                currentUserId={currentUserId}
-              />
-            </div>
+            <ReactionButton
+              messageId={message.id}
+              reactions={message.reactions ?? []}
+              currentUserId={currentUserId}
+            />
           </div>
         </div>
       ))}

@@ -15,16 +15,21 @@ type Reaction = {
 
 export default function ReactionButton({
   messageId,
-  reactions,
+  reactions: initialReactions,
   currentUserId,
 }: {
   messageId: string;
   reactions: Reaction[];
   currentUserId: string;
 }) {
+  const [reactions, setReactions] = useState<Reaction[]>(initialReactions);
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    setReactions(initialReactions);
+  }, [initialReactions]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -55,8 +60,17 @@ export default function ReactionButton({
     );
 
     if (existing) {
+      // Optimistic remove
+      setReactions((prev) => prev.filter((r) => r.id !== existing.id));
       await supabase.from("reactions").delete().eq("id", existing.id);
     } else {
+      // Optimistic add
+      const temp: Reaction = {
+        id: crypto.randomUUID(),
+        emoji,
+        user_id: currentUserId,
+      };
+      setReactions((prev) => [...prev, temp]);
       await supabase.from("reactions").insert({
         message_id: messageId,
         user_id: currentUserId,
@@ -91,7 +105,7 @@ export default function ReactionButton({
         ))}
         <button
           onClick={() => setShowPicker((prev) => !prev)}
-          className="px-1.5 py-0.5 rounded-full text-xs border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-colors"
+          className="px-1.5 py-0.5 rounded-full text-xs border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-colors opacity-0 group-hover:opacity-100 transition-opacity"
         >
           +
         </button>
@@ -119,3 +133,10 @@ export default function ReactionButton({
 // + button opens the emoji picker
 // Click outside closes the picker
 // Picker sits above the message using absolute positioning
+
+// What changed:
+
+// Local reactions state — component manages its own reactions instead of relying on props. Fixes the duplicate bug
+// Optimistic updates — UI updates instantly before the database responds. Feels instant
+// + button uses opacity-0 group-hover:opacity-100 — invisible until hover but reactions always visible
+// useEffect syncs local state when props change from router.refresh()
