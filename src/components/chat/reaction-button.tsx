@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -25,7 +24,6 @@ export default function ReactionButton({
   const [reactions, setReactions] = useState<Reaction[]>(initialReactions);
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   useEffect(() => {
     setReactions(initialReactions);
@@ -77,8 +75,6 @@ export default function ReactionButton({
         emoji,
       });
     }
-
-    router.refresh();
   }
 
   async function handleEmojiClick(emojiData: EmojiClickData) {

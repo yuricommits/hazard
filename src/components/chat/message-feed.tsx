@@ -68,8 +68,7 @@ export default function MessageFeed({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // What changed: Two separate effects now — the first one runs once on mount with instant so when you open a channel it jumps straight to the bottom without animation. The second runs every time messages change with smooth so new incoming messages scroll nicely.
-
+  // Subscription: new messages in this channel
   useEffect(() => {
     const channel = supabase
       .channel(`messages:${channelId}`)
@@ -91,9 +90,64 @@ export default function MessageFeed({
           const newMessage: Message = {
             ...(payload.new as Message),
             profiles: profile,
+            reactions: [],
           };
 
           setMessages((prev) => [...prev, newMessage]);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [channelId]);
+
+  // Subscription: reaction inserts and deletes
+  useEffect(() => {
+    const channel = supabase
+      .channel(`reactions:${channelId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "reactions" },
+        async (payload) => {
+          const messageId = payload.new.message_id;
+          const { data } = await supabase
+            .from("reactions")
+            .select("id, emoji, user_id")
+            .eq("message_id", messageId);
+
+          if (!data) return;
+
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === messageId ? { ...msg, reactions: data } : msg,
+            ),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "reactions" },
+        (payload) => {
+          const deletedId = payload.old.id;
+
+          setMessages((prev) => {
+            const messageId = prev.find((msg) =>
+              msg.reactions.some((r) => r.id === deletedId),
+            )?.id;
+
+            if (!messageId) return prev;
+
+            return prev.map((msg) =>
+              msg.id === messageId
+                ? {
+                    ...msg,
+                    reactions: msg.reactions.filter((r) => r.id !== deletedId),
+                  }
+                : msg,
+            );
+          });
         },
       )
       .subscribe();
