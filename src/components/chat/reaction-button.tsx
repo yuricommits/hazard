@@ -105,7 +105,7 @@ export default function ReactionButton({
         ))}
         <button
           onClick={() => setShowPicker((prev) => !prev)}
-          className="px-1.5 py-0.5 rounded-full text-xs border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-colors opacity-0 group-hover:opacity-100 transition-opacity"
+          className="px-1.5 py-0.5 rounded-full text-xs border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 opacity-0 group-hover:opacity-100 transition-all"
         >
           +
         </button>
