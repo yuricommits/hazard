@@ -184,15 +184,33 @@ export default function MessageComposer({
   return (
     <div className="px-4 pb-4 shrink-0">
       <div className="border border-zinc-800 rounded-lg px-4 py-3 focus-within:border-zinc-700 transition-colors">
-        <textarea
-          ref={textareaRef}
-          value={message}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          placeholder={`Message #${channelName} · @hazard to ask AI`}
-          rows={1}
-          className="w-full bg-transparent text-sm text-zinc-50 placeholder:text-zinc-600 resize-none outline-none max-h-48 overflow-y-auto"
-        />
+        {/*
+          Styled placeholder overlay — visible only when the textarea is empty.
+          Native textarea placeholders can't have partial color, so we layer a
+          positioned div behind the textarea and show it when message === "".
+        */}
+        <div className="relative">
+          {message === "" && (
+            <div
+              className="absolute inset-0 pointer-events-none text-sm leading-normal select-none"
+              aria-hidden="true"
+            >
+              <span className="text-zinc-600">Message #{channelName} · </span>
+              <span className="text-violet-500/60">@hazard</span>
+              <span className="text-zinc-600"> to ask AI</span>
+            </div>
+          )}
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            // Invisible placeholder keeps accessibility + cursor behaviour intact
+            placeholder=""
+            rows={1}
+            className="relative w-full bg-transparent text-sm text-zinc-50 placeholder:text-transparent resize-none outline-none max-h-48 overflow-y-auto"
+          />
+        </div>
       </div>
       <p className="text-[10px] text-zinc-600 mt-1.5 px-1">
         Enter to send · Shift+Enter for new line · @hazard for AI
