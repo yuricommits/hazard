@@ -8,6 +8,10 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const supabase = createClient();
 
+const MIN_WIDTH = 240;
+const MAX_WIDTH = 520;
+const DEFAULT_WIDTH = 288;
+
 type Message = {
   id: string;
   role: "user" | "assistant";
@@ -27,8 +31,16 @@ export default function AiPanel({
   const [isStreaming, setIsStreaming] = useState(false);
   const [useContext, setUseContext] = useState(true);
   const [streamingContent, setStreamingContent] = useState("");
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
+  const [isDragging, setIsDragging] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Drag refs — avoids circular useCallback dependency
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(DEFAULT_WIDTH);
+  const handleMouseMove = useRef<(e: MouseEvent) => void>(() => {});
+  const handleMouseUp = useRef<(e: MouseEvent) => void>(() => {});
 
   // Load conversation history from database on mount
   useEffect(() => {
@@ -52,6 +64,35 @@ export default function AiPanel({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingContent]);
+
+  function onDragHandleMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = panelWidth;
+    setIsDragging(true);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    handleMouseMove.current = (ev: MouseEvent) => {
+      const delta = dragStartX.current - ev.clientX;
+      const newWidth = Math.min(
+        MAX_WIDTH,
+        Math.max(MIN_WIDTH, dragStartWidth.current + delta),
+      );
+      setPanelWidth(newWidth);
+    };
+
+    handleMouseUp.current = () => {
+      setIsDragging(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", handleMouseMove.current);
+      window.removeEventListener("mouseup", handleMouseUp.current);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove.current);
+    window.addEventListener("mouseup", handleMouseUp.current);
+  }
 
   async function getChannelContext(): Promise<string> {
     if (!channelId || !useContext) return "";
@@ -84,7 +125,6 @@ export default function AiPanel({
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
-    // Add user message to state
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -92,7 +132,6 @@ export default function AiPanel({
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    // Save user message to database
     await supabase.from("ai_conversations").insert({
       user_id: currentUserId,
       workspace_id: workspaceId,
@@ -100,13 +139,11 @@ export default function AiPanel({
       content: userContent,
     });
 
-    // Start streaming
     setIsStreaming(true);
     setStreamingContent("");
 
     const channelContext = await getChannelContext();
 
-    // Build messages array for API (full history)
     const apiMessages = [...messages, userMessage].map((m) => ({
       role: m.role,
       content: m.content,
@@ -123,7 +160,6 @@ export default function AiPanel({
       return;
     }
 
-    // Stream the response token by token
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullContent = "";
@@ -136,7 +172,6 @@ export default function AiPanel({
       setStreamingContent(fullContent);
     }
 
-    // Streaming done — move to messages state
     setIsStreaming(false);
     setStreamingContent("");
 
@@ -147,7 +182,6 @@ export default function AiPanel({
     };
     setMessages((prev) => [...prev, assistantMessage]);
 
-    // Save assistant message to database
     await supabase.from("ai_conversations").insert({
       user_id: currentUserId,
       workspace_id: workspaceId,
@@ -174,20 +208,43 @@ export default function AiPanel({
     }
   }
 
+  const suggestions = [
+    "Explain this codebase",
+    "Review recent changes",
+    "Debug an issue",
+  ];
+
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.aside
           initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 288, opacity: 1 }}
+          animate={{ width: panelWidth, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden"
+          transition={
+            isDragging
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 300, damping: 30 }
+          }
+          className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden relative"
         >
+          {/* Drag handle — left edge */}
+          <div
+            onMouseDown={onDragHandleMouseDown}
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 group"
+          >
+            <div
+              className={`absolute left-0 top-0 bottom-0 w-px transition-colors duration-150 ${
+                isDragging
+                  ? "bg-violet-500"
+                  : "bg-transparent group-hover:bg-violet-500/50"
+              }`}
+            />
+          </div>
+
           {/* Header */}
           <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
             <div className="flex items-center gap-2">
-              {/* Gradient AI icon */}
               <div className="w-5 h-5 rounded-full flex items-center justify-center bg-linear-to-br from-violet-500 to-cyan-400 shrink-0">
                 <svg
                   width="10"
@@ -209,7 +266,6 @@ export default function AiPanel({
               </span>
             </div>
             <div className="flex items-center gap-1">
-              {/* Clear history button */}
               <button
                 onClick={clearHistory}
                 title="Clear history"
@@ -254,10 +310,58 @@ export default function AiPanel({
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+            {/* Empty state */}
             {messages.length === 0 && !isStreaming && (
-              <p className="text-xs text-zinc-600 text-center mt-4">
-                Ask Hazard AI anything
-              </p>
+              <div className="flex flex-col items-center gap-4 mt-6 px-2">
+                <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-violet-500/15 to-cyan-400/15 border border-violet-500/20 flex items-center justify-center">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <defs>
+                      <linearGradient
+                        id="aiGrad"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="100%"
+                      >
+                        <stop offset="0%" stopColor="#8b5cf6" />
+                        <stop offset="100%" stopColor="#22d3ee" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="url(#aiGrad)" />
+                    <path d="M2 17l10 5 10-5" stroke="url(#aiGrad)" />
+                    <path d="M2 12l10 5 10-5" stroke="url(#aiGrad)" />
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-medium text-zinc-300">
+                    Your dev intelligence layer
+                  </p>
+                  <p className="text-[11px] text-zinc-600 mt-1 leading-relaxed">
+                    Ask about code, architecture,
+                    <br />
+                    or what&apos;s happening in this channel.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1.5 w-full mt-1">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setInput(s)}
+                      className="text-left text-[11px] text-zinc-500 hover:text-zinc-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-lg px-3 py-2 transition-all"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             {messages.map((m) => (
