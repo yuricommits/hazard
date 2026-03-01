@@ -169,3 +169,29 @@ export const aiConversations = pgTable("ai_conversations", {
 // role is either 'user' (what the human typed) or 'assistant' (what Hazard AI replied).
 // Scoped to workspace so each workspace has its own AI conversation history.
 // Delete user or workspace and all their AI history is cleaned up automatically via cascade.
+
+export const workspaceInvites = pgTable("workspace_invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  createdBy: uuid("created_by")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  token: text("token").unique().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }), // null = never expires
+  maxUses: integer("max_uses"), // null = unlimited
+  useCount: integer("use_count").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// workspaceInvites — each row is a single invite link identified by a unique token.
+// Token is embedded in the invite URL: /invite/[token]
+// isActive: owner can revoke an invite at any time by setting this to false.
+// expiresAt: optional expiry — checked at join time, null means the link never expires.
+// maxUses: optional cap on how many people can use this link, null means unlimited.
+// useCount: incremented each time someone successfully joins via this invite.
+// Cascade delete: if the workspace is deleted, all its invites are cleaned up too.
