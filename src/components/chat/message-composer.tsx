@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useReplyStore } from "@/stores/reply-store";
 
 const supabase = createClient();
 
@@ -24,11 +25,28 @@ export default function MessageComposer({
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const { replyTo, clearReplyTo } = useReplyStore();
+
+  // When a reply is set, pre-fill the composer with @mention and focus
+  useEffect(() => {
+    if (replyTo) {
+      const mention = `@${replyTo.username} `;
+      setMessage(mention);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(mention.length, mention.length);
+          textareaRef.current.style.height = "auto";
+          textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+        }
+      }, 0);
+    }
+  }, [replyTo]);
+
   useEffect(() => {
     const channel = supabase.channel(`typing:${channelId}`);
     channel.subscribe();
     presenceChannelRef.current = channel;
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -75,7 +93,6 @@ export default function MessageComposer({
   }
 
   async function sendAiMessage(prompt: string) {
-    // 1. Save the user's @hazard message and capture its ID
     const { data: userMessage } = await supabase
       .from("messages")
       .insert({
@@ -88,13 +105,9 @@ export default function MessageComposer({
 
     const parentMessageId = userMessage?.id ?? null;
 
-    // 2. Show "Hazard is thinking..." to everyone
     broadcastHazardThinking(true);
-
-    // 3. Fetch channel context
     const channelContext = await getChannelContext();
 
-    // 4. Call the AI API
     const response = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -109,10 +122,8 @@ export default function MessageComposer({
       return;
     }
 
-    // 5. Stop "thinking" indicator
     broadcastHazardThinking(false);
 
-    // 6. Stream the response and collect full content
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullContent = "";
@@ -123,7 +134,6 @@ export default function MessageComposer({
       fullContent += decoder.decode(value, { stream: true });
     }
 
-    // 7. Save AI response linked to the triggering message
     await supabase.from("messages").insert({
       channel_id: channelId,
       user_id: currentUserId,
@@ -142,6 +152,7 @@ export default function MessageComposer({
     setSending(true);
     const text = message.trim();
     setMessage("");
+    clearReplyTo();
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -167,7 +178,6 @@ export default function MessageComposer({
     e.target.style.height = `${e.target.scrollHeight}px`;
 
     broadcastTyping(true);
-
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       broadcastTyping(false);
@@ -175,6 +185,11 @@ export default function MessageComposer({
   }
 
   async function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Escape" && replyTo) {
+      clearReplyTo();
+      setMessage("");
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       await sendMessage();
@@ -183,16 +198,66 @@ export default function MessageComposer({
 
   return (
     <div className="px-4 pb-4 shrink-0">
-      <div className="border border-zinc-800 rounded-lg px-4 py-3 focus-within:border-zinc-700 transition-colors">
-        {/*
-          Styled placeholder overlay — visible only when the textarea is empty.
-          Native textarea placeholders can't have partial color, so we layer a
-          positioned div behind the textarea and show it when message === "".
-        */}
-        <div className="relative">
+      <div
+        className={`border border-zinc-800 rounded-lg focus-within:border-zinc-700 transition-colors ${replyTo ? "border-violet-500/30" : ""}`}
+      >
+        {/* Reply quote bar */}
+        {replyTo && (
+          <div className="flex items-center justify-between gap-2 px-4 pt-2.5 pb-2 border-b border-zinc-800">
+            <div className="flex items-center gap-2 min-w-0">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-violet-400 shrink-0"
+              >
+                <polyline points="9 17 4 12 9 7" />
+                <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+              </svg>
+              <span className="text-[11px] text-zinc-500 shrink-0">
+                Replying to{" "}
+                <span className="text-violet-400 font-medium">
+                  @{replyTo.username}
+                </span>
+              </span>
+              <span className="text-[11px] text-zinc-600 truncate">
+                — {replyTo.content}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                clearReplyTo();
+                setMessage("");
+              }}
+              className="text-zinc-600 hover:text-zinc-400 transition-colors shrink-0"
+              title="Cancel reply (Esc)"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        <div className="relative px-4 py-3">
           {message === "" && (
             <div
-              className="absolute inset-0 pointer-events-none text-sm leading-normal select-none"
+              className="absolute inset-0 px-4 py-3 pointer-events-none text-sm leading-normal select-none"
               aria-hidden="true"
             >
               <span className="text-zinc-600">Message #{channelName} · </span>
@@ -205,15 +270,16 @@ export default function MessageComposer({
             value={message}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            // Invisible placeholder keeps accessibility + cursor behaviour intact
             placeholder=""
             rows={1}
             className="relative w-full bg-transparent text-sm text-zinc-50 placeholder:text-transparent resize-none outline-none max-h-48 overflow-y-auto"
           />
         </div>
       </div>
+
       <p className="text-[10px] text-zinc-600 mt-1.5 px-1">
         Enter to send · Shift+Enter for new line · @hazard for AI
+        {replyTo && " · Esc to cancel reply"}
       </p>
     </div>
   );

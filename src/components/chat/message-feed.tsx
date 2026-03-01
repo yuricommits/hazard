@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import MessageContent from "@/components/chat/message-content";
 import AiMessage from "@/components/chat/ai-message";
 import { useThreadStore } from "@/stores/thread-store";
+import { useReplyStore } from "@/stores/reply-store";
 import { getOrCreateThread } from "@/lib/supabase/threads";
 import ReactionButton from "@/components/chat/reaction-button";
 import { usePresenceStore } from "@/stores/presence-store";
@@ -49,6 +50,11 @@ function isGrouped(messages: Message[], index: number): boolean {
   return diff < 5 * 60 * 1000;
 }
 
+// Truncate message content for reply preview
+function truncate(text: string, max = 80) {
+  return text.length > max ? text.slice(0, max) + "…" : text;
+}
+
 export default function MessageFeed({
   channelId,
   channelName,
@@ -65,13 +71,32 @@ export default function MessageFeed({
   );
   const bottomRef = useRef<HTMLDivElement>(null);
   const { openThread } = useThreadStore();
+  const { setReplyTo } = useReplyStore();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
 
-  async function handleReply(messageId: string) {
-    // Open panel immediately — no network calls before this
-    openThread(null, messageId);
+  // Reply — pre-fills composer with @mention, does NOT open thread panel
+  function handleReply(message: Message) {
+    const username =
+      message.profiles?.display_name ?? message.profiles?.username ?? "Unknown";
+    setReplyTo({
+      messageId: message.id,
+      content: truncate(message.content),
+      username,
+    });
+  }
 
-    // Resolve/create thread in background
+  // Create thread — only available if no thread exists yet
+  async function handleCreateThread(messageId: string) {
+    openThread(null, messageId);
+    const threadId = await getOrCreateThread(messageId, currentUserId);
+    if (threadId) {
+      useThreadStore.getState().setThreadId(threadId);
+    }
+  }
+
+  // View thread — opens existing thread panel
+  async function handleViewThread(messageId: string) {
+    openThread(null, messageId);
     const threadId = await getOrCreateThread(messageId, currentUserId);
     if (threadId) {
       useThreadStore.getState().setThreadId(threadId);
@@ -288,6 +313,7 @@ export default function MessageFeed({
         }
 
         const aiResponse = aiResponseMap[message.id];
+        const hasThread = message.replyCount > 0;
 
         return (
           <div key={message.id} className="flex flex-col">
@@ -295,13 +321,56 @@ export default function MessageFeed({
               className={`flex items-start gap-3 px-2 rounded-lg hover:bg-zinc-900/50 group relative ${grouped ? "py-0.5" : "py-1 mt-1"}`}
             >
               {/* Hover actions */}
-              <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md px-1 py-0.5">
+              <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md px-1 py-0.5 shadow-lg">
+                {/* Reply — always visible, pre-fills composer */}
                 <button
-                  onClick={() => handleReply(message.id)}
-                  className="text-[11px] text-zinc-400 hover:text-zinc-50 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors"
+                  onClick={() => handleReply(message)}
+                  className="text-[11px] text-zinc-400 hover:text-zinc-50 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors flex items-center gap-1"
+                  title="Reply in channel"
                 >
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="9 17 4 12 9 7" />
+                    <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+                  </svg>
                   Reply
                 </button>
+
+                {/* Divider */}
+                <div className="w-px h-3 bg-zinc-700" />
+
+                {/* Create thread — only if no thread exists yet */}
+                {!hasThread && (
+                  <button
+                    onClick={() => handleCreateThread(message.id)}
+                    className="text-[11px] text-zinc-400 hover:text-zinc-50 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors flex items-center gap-1"
+                    title="Create thread"
+                  >
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      <line x1="12" y1="8" x2="12" y2="14" />
+                      <line x1="9" y1="11" x2="15" y2="11" />
+                    </svg>
+                    Thread
+                  </button>
+                )}
               </div>
 
               {/* Avatar or grouped timestamp */}
@@ -325,7 +394,7 @@ export default function MessageFeed({
                 </div>
               )}
 
-              <div className="flex flex-col min-w-0">
+              <div className="flex flex-col min-w-0 flex-1">
                 {!grouped && (
                   <div className="flex items-baseline gap-2">
                     <span className="text-sm font-medium text-zinc-50">
@@ -350,10 +419,11 @@ export default function MessageFeed({
                   currentUserId={currentUserId}
                 />
 
-                {message.replyCount > 0 && (
+                {/* View thread — only if thread exists */}
+                {hasThread && (
                   <button
-                    onClick={() => handleReply(message.id)}
-                    className="mt-1 flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-300 hover:underline transition-colors w-fit"
+                    onClick={() => handleViewThread(message.id)}
+                    className="mt-1 flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-300 transition-colors w-fit group/thread"
                   >
                     <svg
                       width="12"
@@ -367,8 +437,10 @@ export default function MessageFeed({
                     >
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
-                    {message.replyCount}{" "}
-                    {message.replyCount === 1 ? "reply" : "replies"}
+                    <span className="group-hover/thread:underline">
+                      {message.replyCount}{" "}
+                      {message.replyCount === 1 ? "reply" : "replies"}
+                    </span>
                   </button>
                 )}
               </div>

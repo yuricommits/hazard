@@ -4,6 +4,7 @@ import MessageComposer from "@/components/chat/message-composer";
 import MessageFeed from "@/components/chat/message-feed";
 import TypingIndicator from "@/components/chat/typing-indicator";
 import AiChannelSync from "@/components/chat/ai-channel-sync";
+import ThreadsButton from "@/components/chat/threads-button";
 
 export default async function ChannelPage({
   params,
@@ -17,9 +18,7 @@ export default async function ChannelPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -36,9 +35,7 @@ export default async function ChannelPage({
     .eq("slug", workspaceSlug)
     .single();
 
-  if (!workspace) {
-    redirect("/create-workspace");
-  }
+  if (!workspace) redirect("/create-workspace");
 
   const { data: channel } = await supabase
     .from("channels")
@@ -47,9 +44,7 @@ export default async function ChannelPage({
     .eq("name", channelName)
     .single();
 
-  if (!channel) {
-    redirect(`/${workspaceSlug}`);
-  }
+  if (!channel) redirect(`/${workspaceSlug}`);
 
   const { data: messages } = await supabase
     .from("messages")
@@ -62,9 +57,9 @@ export default async function ChannelPage({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Syncs current channel to AI panel store */}
       <AiChannelSync channelId={channel.id} channelName={channel.name} />
 
+      {/* Channel header */}
       <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-zinc-500 font-medium">#</span>
@@ -75,6 +70,7 @@ export default async function ChannelPage({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <ThreadsButton channelId={channel.id} />
           <button className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1 rounded hover:bg-zinc-800 transition-colors">
             Search
           </button>
