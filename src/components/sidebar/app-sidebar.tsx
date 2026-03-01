@@ -9,7 +9,7 @@ import CreateChannelButton from "@/components/sidebar/create-channel-button";
 import SignOutButton from "@/components/sidebar/sign-out-button";
 import AiPanelButton from "@/components/sidebar/ai-panel-button";
 import WorkspacePresence from "@/components/sidebar/workspace-presence";
-import WorkspaceSettingsModal from "@/components/workspace/workspace-settings-modal";
+import SettingsOverlay from "@/components/workspace/settings-overlay";
 
 type Channel = {
   id: string;
@@ -22,6 +22,7 @@ export default function AppSidebar({
   workspaceId,
   currentUserId,
   username,
+  displayName,
   channels,
 }: {
   workspaceName: string;
@@ -29,12 +30,21 @@ export default function AppSidebar({
   workspaceId: string;
   currentUserId: string;
   username: string;
+  displayName: string | null;
   channels: Channel[];
 }) {
   const { collapsed, toggle } = useSidebarStore();
   const params = useParams();
   const activeChannel = params.channel as string;
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<
+    "profile" | "workspace"
+  >("profile");
+
+  function openSettings(section: "profile" | "workspace") {
+    setSettingsSection(section);
+    setSettingsOpen(true);
+  }
 
   return (
     <>
@@ -158,9 +168,9 @@ export default function AppSidebar({
         <div className="p-2 border-t border-zinc-800 shrink-0 flex flex-col gap-1">
           <AiPanelButton collapsed={collapsed} />
 
-          {/* Settings button */}
+          {/* Settings button — opens Workspace section */}
           <button
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => openSettings("workspace")}
             title="Workspace settings"
             className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ${
               collapsed ? "justify-center mx-1" : "mx-1"
@@ -195,13 +205,17 @@ export default function AppSidebar({
             </AnimatePresence>
           </button>
 
-          {/* User row */}
-          <div
-            className={`flex items-center gap-2 px-2 py-1 ${collapsed ? "justify-center" : ""}`}
+          {/* User row — clickable, opens Profile section */}
+          <button
+            onClick={() => openSettings("profile")}
+            title="Profile settings"
+            className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-800 transition-colors w-full ${
+              collapsed ? "justify-center" : ""
+            }`}
           >
             <div className="relative shrink-0">
               <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-[11px] font-medium text-zinc-300">
-                {username?.[0]?.toUpperCase() ?? "?"}
+                {(displayName || username)?.[0]?.toUpperCase() ?? "?"}
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950" />
             </div>
@@ -212,14 +226,15 @@ export default function AppSidebar({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.1 }}
-                  className="text-xs text-zinc-400 truncate flex-1"
+                  className="text-xs text-zinc-400 truncate flex-1 text-left"
                 >
-                  {username}
+                  {displayName || username}
                 </motion.span>
               )}
             </AnimatePresence>
-          </div>
+          </button>
 
+          {/* Sign out — only shown when expanded */}
           <AnimatePresence>
             {!collapsed && (
               <motion.div
@@ -235,14 +250,17 @@ export default function AppSidebar({
         </div>
       </motion.aside>
 
-      {/* Settings modal — rendered outside aside so it overlays the full screen */}
-      <WorkspaceSettingsModal
+      {/* Settings overlay — outside aside so it covers full screen */}
+      <SettingsOverlay
         open={settingsOpen}
+        initialSection={settingsSection}
         onCloseAction={() => setSettingsOpen(false)}
         workspaceId={workspaceId}
         workspaceName={workspaceName}
         workspaceSlug={workspaceSlug}
         currentUserId={currentUserId}
+        username={username}
+        displayName={displayName}
       />
     </>
   );

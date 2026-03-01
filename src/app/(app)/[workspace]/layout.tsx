@@ -36,7 +36,7 @@ export default async function WorkspaceLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username")
+    .select("username, display_name")
     .eq("id", user.id)
     .single();
 
@@ -48,6 +48,7 @@ export default async function WorkspaceLayout({
         workspaceId={workspace.id}
         currentUserId={user.id}
         username={profile?.username ?? "You"}
+        displayName={profile?.display_name ?? null}
         channels={channels ?? []}
       />
 
