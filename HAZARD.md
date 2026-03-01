@@ -29,18 +29,19 @@ Hazard is a powerful developer-first chat application. It competes directly with
 - **Supabase** — entire backend:
   - PostgreSQL (primary database, 10 tables)
   - Auth (email auth, no email confirmation in dev)
-  - Realtime (live messages working across tabs)
+  - Realtime (live messages + reactions working across tabs)
   - Storage (not yet implemented)
 - **Upstash Redis** — rate limiting and caching (not yet implemented)
 - **Cloudflare R2** — CDN for media uploads (not yet implemented)
 
 ### AI
-- **Vercel AI SDK** (`ai` + `@ai-sdk/anthropic`) — streaming, installed ✓
-- **Anthropic Claude API** — `claude-sonnet-4-6` — API route built, needs credits to test
+- **Vercel AI SDK** (`ai` + `@ai-sdk/anthropic`) — installed
+- **Anthropic Claude API** — `claude-sonnet-4-6` — active model
+- **Note:** `@ai-sdk/google` may still be installed — can uninstall with `npm uninstall @ai-sdk/google`
 
 ### Developer Experience
 - **Drizzle ORM** — type-safe database schema and queries
-- **Zod** — schema validation (forms → API → database)
+- **Zod** — schema validation
 - **Zustand** — lightweight client state
 - **React Hook Form** — form handling
 - **nuqs** — URL state management (not yet implemented)
@@ -121,26 +122,26 @@ hazard/
 │   │   │       └── page.tsx
 │   │   ├── api/
 │   │   │   └── ai/
-│   │   │       └── route.ts           # Streaming AI endpoint
+│   │   │       └── route.ts           # Streaming AI endpoint (Anthropic claude-sonnet-4-6)
 │   │   ├── layout.tsx
 │   │   └── page.tsx
 │   ├── components/
 │   │   ├── ui/                        # shadcn/ui primitives
 │   │   ├── chat/
-│   │   │   ├── message-feed.tsx       # real-time message feed + reactions + reply count
+│   │   │   ├── message-feed.tsx       # real-time feed, reactions, reply count, AI grouping
 │   │   │   ├── message-composer.tsx   # send messages + @hazard detection
 │   │   │   ├── message-content.tsx    # markdown + syntax highlighting
 │   │   │   ├── reaction-button.tsx    # emoji reactions with optimistic updates
 │   │   │   ├── thread-panel.tsx       # thread replies panel
 │   │   │   ├── typing-indicator.tsx   # typing + hazard thinking indicator
-│   │   │   ├── ai-message.tsx         # distinct AI message in feed
+│   │   │   ├── ai-message.tsx         # distinct AI message component
 │   │   │   ├── ai-panel.tsx           # dedicated AI side panel
 │   │   │   └── ai-channel-sync.tsx    # syncs current channel to AI panel store
 │   │   └── sidebar/
 │   │       ├── channel-list.tsx
 │   │       ├── create-channel-button.tsx
 │   │       ├── sign-out-button.tsx
-│   │       └── ai-panel-button.tsx    # opens/closes AI panel from sidebar
+│   │       └── ai-panel-button.tsx
 │   ├── lib/
 │   │   ├── supabase/
 │   │   │   ├── client.ts
@@ -154,8 +155,8 @@ hazard/
 │   │   │   └── auth.ts
 │   │   └── utils.ts
 │   ├── stores/
-│   │   ├── thread-store.ts            # Zustand store for thread panel
-│   │   └── ai-panel-store.ts          # Zustand store for AI panel
+│   │   ├── thread-store.ts
+│   │   └── ai-panel-store.ts
 │   ├── types/
 │   │   └── index.ts
 │   └── proxy.ts
@@ -170,20 +171,17 @@ hazard/
 ### Auth Flow
 - Supabase Auth (email, no confirmation in dev)
 - Database trigger auto-creates profile on signup
-- Route protection via `proxy.ts` (Next.js 16)
+- Route protection via `proxy.ts`
 - Session managed via cookies (server + browser clients)
 
 ### Real-time Strategy
 - Supabase Realtime enabled on messages + reactions tables
-- reactions table has REPLICA IDENTITY FULL (required for DELETE events)
+- reactions table has REPLICA IDENTITY FULL
 - Typing indicators + "Hazard is thinking..." via Supabase Presence
 
 ### RLS Policies (Current — open for dev, tighten before ship)
 - profiles: select all authenticated, update own
-- workspaces: all authenticated users (open)
-- workspace_members: all authenticated users (open)
-- channels: all authenticated users (open)
-- channel_members: all authenticated users (open)
+- workspaces/channels/members: all authenticated (open)
 - messages: select/insert all, update/delete own
 
 ---
@@ -196,11 +194,11 @@ hazard/
 - `workspace_members` — users ↔ workspaces (roles: owner, admin, member)
 - `channels` — belongs to workspace (public/private)
 - `channel_members` — users ↔ channels
-- `messages` — belongs to channel, real-time enabled. `is_ai` flag for AI messages
+- `messages` — belongs to channel. Fields: `is_ai` (AI flag), `parent_message_id` (links AI response to triggering message), `thread_id`
 - `threads` — belongs to a parent message
-- `reactions` — belongs to message. Realtime enabled. REPLICA IDENTITY FULL.
-- `files` — uploaded files/images, linked to messages
-- `ai_conversations` — AI panel history per user per workspace (role, content)
+- `reactions` — Realtime enabled. REPLICA IDENTITY FULL.
+- `files` — uploaded files/images
+- `ai_conversations` — AI panel history per user per workspace
 
 ---
 
@@ -221,13 +219,14 @@ hazard/
 - [x] Reactions real-time sync across tabs
 - [x] Thread reply count indicator with real-time updates
 - [x] Typing indicators with Supabase Presence
-- [x] Hazard AI — API route, @hazard detection, AI message component, AI panel
+- [x] Hazard AI — API route, @hazard detection, streaming, ai-message component
+- [x] AI panel — persistent history, context pill, streaming replies
+- [x] AI response visually grouped under triggering message (parent_message_id)
+- [x] User presence (online/offline)
 
 ### Next Up
-- [ ] Add Anthropic credits and test full AI flow end to end
-- [ ] Connect @hazard response visually to the triggering message (reply-style grouping)
+- [ ] Test full AI flow end to end with Anthropic credits
 - [ ] AI panel context pill timing fix (opens before channel syncs)
-- [ ] User presence (online/offline)
 - [ ] UI polish pass
 - [ ] Slash commands (/deploy, /run, /pr, /ai)
 - [ ] Cmd+K search
@@ -245,8 +244,7 @@ hazard/
 - Repo-aware AI context
 - Custom bot API
 - Mobile app (React Native)
-- /ui slash command — generate UI components inline
-- IDE-like environment with AI as first-class citizen
+- /ui slash command
 - Desktop app (Electron/Tauri)
 - Notification preferences
 - Message search with filters
@@ -254,11 +252,11 @@ hazard/
 - Channel analytics
 - Workspace billing
 - Tighten RLS policies before ship
-- Move all SQL to supabase/policies.sql
 - Enable email confirmation with Resend (production)
 - Husky + Commitlint setup
 - Custom scrollbar styling
 - Rate limiting for AI (Upstash Redis)
+- Sliding panels (thread + AI) — shadcn Sheet + Framer Motion
 
 ---
 
@@ -282,13 +280,14 @@ hazard/
 | 06 | Message composer, real-time feed, Supabase Realtime |
 | 07 | Active channel highlight, sign out, auto-scroll, deployed to Vercel |
 | 08 | Markdown, syntax highlighting, auto-expanding composer, threads, emoji reactions |
-| 09 | Reactions real-time sync. Enabled Realtime on reactions. REPLICA IDENTITY FULL. Removed router.refresh() |
-| 10 | Thread reply count (real-time). Typing indicators (Supabase Presence). Hazard AI: API route, @hazard detection, ai-message component, ai-panel with persistent history + context pill, ai-panel-store, ai-panel-button, ai-channel-sync |
-
+| 09 | Reactions real-time sync. Enabled Realtime on reactions. REPLICA IDENTITY FULL. |
+| 10 | Thread reply count (real-time). Typing indicators. Hazard AI: API route, @hazard detection, ai-message, ai-panel, ai-panel-store, ai-panel-button, ai-channel-sync |
+| 11 | AI response visually grouped under triggering message. Added parent_message_id to messages. Composer captures message ID and passes as parent_message_id on AI response. Feed builds aiResponseMap and renders AI inline below parent. Reverted to Anthropic. |
+| 12 | User presence. presence-store.ts (Zustand), WorkspacePresence component (workspace-level Supabase Presence channel). Online dot on sidebar user row + message avatars. Panels (thread + AI) flagged for Framer Motion + shadcn Sheet polish later. |
 ---
 
-> Last updated: Session 10
+> Last updated: Session 12
 > Next session:
-> - Add Anthropic credits and test full AI flow
-> - Connect @hazard response visually to the triggering message (reply-style grouping)
+> - UI polish pass
 > - AI panel context pill timing fix
+> - Cmd+K search or slash commands

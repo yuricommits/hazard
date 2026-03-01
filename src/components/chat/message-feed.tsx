@@ -7,6 +7,7 @@ import AiMessage from "@/components/chat/ai-message";
 import { useThreadStore } from "@/stores/thread-store";
 import { getOrCreateThread } from "@/lib/supabase/threads";
 import ReactionButton from "@/components/chat/reaction-button";
+import { usePresenceStore } from "@/stores/presence-store";
 
 type Profile = {
   id: string;
@@ -53,6 +54,7 @@ export default function MessageFeed({
   );
   const bottomRef = useRef<HTMLDivElement>(null);
   const { openThread } = useThreadStore();
+  const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
 
   async function handleReply(messageId: string) {
     const {
@@ -297,9 +299,16 @@ export default function MessageFeed({
                 </button>
               </div>
 
-              <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
-                {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
+              <div className="relative shrink-0">
+                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">
+                  {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
+                </div>
+                {onlineUserIds.has(message.user_id) && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950" />
+                )}
               </div>
+
+              {/*What changed: the avatar is now wrapped in a relative container so the dot can be positioned over it. onlineUserIds.has(message.user_id) checks the Zustand store — if that user is online, the same emerald dot appears. No new subscriptions, no extra fetches — it just reads from the store that's already being kept up to date by WorkspacePresence.*/}
 
               <div className="flex flex-col min-w-0">
                 <div className="flex items-baseline gap-2">

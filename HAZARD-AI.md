@@ -15,23 +15,23 @@ Hazard AI is a first-class citizen in the Hazard chat experience — not a bolte
 
 ### 1. @hazard mention in any channel ✓ BUILT
 - User types `@hazard <prompt>` in the message composer
-- AI response streams directly into the channel feed as a distinct AI message
-- Any channel can invoke AI — no dedicated channel required
-- Visible to ALL members in the channel — collaborative by design
-- Triggers a "Hazard is thinking..." typing indicator while generating
+- User's message saved first, its ID captured as `parent_message_id`
+- AI response saved with `is_ai: true` and `parent_message_id` linking it to the trigger
+- AI response renders indented below the triggering message with a connector line
+- Visible to ALL members — collaborative by design
+- "Hazard is thinking..." indicator shown while generating
 
 ### 2. Dedicated AI panel ✓ BUILT
 - Opens from "Hazard AI" button in sidebar
-- Private conversation history — one persistent thread per user per workspace
-- History saved to `ai_conversations` table — survives refresh
-- "Clear history" button in panel header
-- Context-aware by default: picks up last 10 messages from current channel
+- Persistent history per user per workspace (saved to `ai_conversations` table)
+- "Clear history" button
+- Context-aware: picks up last 10 messages from current channel
 - Context pill shows active channel — click X to go private
-- Switching channels updates context automatically
+- Streaming responses with animated cursor
 
 ---
 
-## CAPABILITIES (IN ORDER OF IMPLEMENTATION)
+## CAPABILITIES
 
 | Priority | Capability | Status |
 |----------|-----------|--------|
@@ -42,44 +42,38 @@ Hazard AI is a first-class citizen in the Hazard chat experience — not a bolte
 
 ---
 
-## VISUAL DESIGN
+## VISUAL DESIGN ✓ BUILT
 
-### AI Message in Feed ✓ BUILT
+### AI Message in Feed
 - Left-side accent bar: violet-500 → cyan-400 gradient
 - Avatar: gradient circle with layers icon
 - Name: "Hazard AI" in violet gradient text
-- Streaming cursor: animate-pulse vertical bar while streaming
+- When grouped: indented with `ml-11 pl-4 border-l-2 border-zinc-800` connector
 
-### "Hazard is thinking..." indicator ✓ BUILT
+### "Hazard is thinking..." indicator
 - Violet animated dots + gradient text
-- Appears above composer, visible to all channel members
-- Uses same Supabase Presence channel as typing indicators
+- Appears above composer, visible to all via Supabase Presence
 
-### AI Panel ✓ BUILT
+### AI Panel
 - w-72, sits alongside thread panel
-- Gradient header icon + name
-- Context pill with dismiss X
-- Streaming response with dots while waiting, cursor while generating
-- Disabled input while streaming
+- Gradient header + context pill
+- Streaming with dots → cursor → done
 
 ---
 
 ## TECHNICAL ARCHITECTURE
 
-### Stack
-- **Vercel AI SDK** (`ai` + `@ai-sdk/anthropic`) ✓ installed
-- **Anthropic Claude API** — `claude-sonnet-4-6`
-- **Next.js Route Handler** — `src/app/api/ai/route.ts` ✓ built
-
-### API Route
+### API Route — `src/app/api/ai/route.ts`
 - POST `/api/ai`
 - Body: `{ messages: CoreMessage[], channelContext?: string }`
-- Auth-gated — returns 401 if not logged in
+- Auth-gated (401 if not logged in)
+- Model: `claude-sonnet-4-6` via `@ai-sdk/anthropic`
 - Returns streaming text via `toTextStreamResponse()`
 
 ### Database
-- `messages.is_ai` — boolean flag for AI channel messages ✓
-- `ai_conversations` — panel history per user per workspace ✓
+- `messages.is_ai` — boolean flag for AI channel messages
+- `messages.parent_message_id` — links AI response to triggering @hazard message
+- `ai_conversations` — panel history per user per workspace
 
 ### Key Files
 - `src/app/api/ai/route.ts` — streaming endpoint
@@ -104,12 +98,11 @@ You are direct and do not over-explain unless asked.
 
 ## KNOWN ISSUES / NEXT UP
 
-- [ ] Add Anthropic credits and test full flow end to end
-- [ ] Connect @hazard response visually to the triggering message (reply-style grouping)
+- [ ] Test full flow end to end with Anthropic credits
 - [ ] AI panel context pill timing fix — panel opens before AiChannelSync fires
 - [ ] Rate limiting (Upstash Redis — parked)
 
 ---
 
-> Last updated: Session 10
-> Status: Built — pending credits to test
+> Last updated: Session 11
+> Status: Built — pending Anthropic credits to test end to end
