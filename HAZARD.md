@@ -223,6 +223,7 @@ hazard/
 - [x] AI panel — persistent history, context pill, streaming replies
 - [x] AI response visually grouped under triggering message (parent_message_id)
 - [x] User presence (online/offline)
+- [x] UI polish pass (in progress)
 
 ### Next Up
 - [ ] Test full AI flow end to end with Anthropic credits
@@ -257,6 +258,7 @@ hazard/
 - Custom scrollbar styling
 - Rate limiting for AI (Upstash Redis)
 - Sliding panels (thread + AI) — shadcn Sheet + Framer Motion
+- Sliding Thread + AI panels — Framer Motion (next polish target)
 
 ---
 
@@ -285,11 +287,11 @@ hazard/
 | 11 | AI response visually grouped under triggering message. Added parent_message_id to messages. Composer captures message ID and passes as parent_message_id on AI response. Feed builds aiResponseMap and renders AI inline below parent. Reverted to Anthropic. |
 | 12 | User presence. presence-store.ts (Zustand), WorkspacePresence component (workspace-level Supabase Presence channel). Online dot on sidebar user row + message avatars. Panels (thread + AI) flagged for Framer Motion + shadcn Sheet polish later. |
 | 12 | ... + Fixed real-time messages: removed double filter on Realtime subscription, added REPLICA IDENTITY FULL to messages table. |
-
+| 13 | UI polish pass. Consecutive message grouping (5min window, hides avatar/name). Reaction + button collapses to zero height, expands on hover. Collapsible sidebar with Framer Motion spring animation — collapses to 56px icon-only mode, state persisted via Zustand persist. sidebar-store.ts, app-sidebar.tsx, ai-panel-button.tsx updated. WorkspacePresence moved into AppSidebar. |
 ---
 
-> Last updated: Session 12
+> Last updated: Session 13
 > Next session:
-> - UI polish pass
+> - Continue UI polish (thread panel, AI panel, message composer, channel header)
+> - Framer Motion sliding Thread + AI panels
 > - AI panel context pill timing fix
-> - Cmd+K search or slash commands
