@@ -65,9 +65,23 @@ export default async function ChannelPage({
       {/* Syncs current channel to AI panel store */}
       <AiChannelSync channelId={channel.id} channelName={channel.name} />
 
-      <div className="h-12 border-b border-zinc-800 flex items-center px-4 shrink-0">
-        <span className="text-zinc-600 mr-1">#</span>
-        <h1 className="text-sm font-semibold text-zinc-50">{channel.name}</h1>
+      <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-zinc-500 font-medium">#</span>
+          <h1 className="text-sm font-semibold text-zinc-50">{channel.name}</h1>
+          <div className="w-px h-3.5 bg-zinc-700 mx-1" />
+          <span className="text-xs text-zinc-500">
+            {messages?.length ?? 0} messages
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1 rounded hover:bg-zinc-800 transition-colors">
+            Search
+          </button>
+          <button className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1 rounded hover:bg-zinc-800 transition-colors">
+            Members
+          </button>
+        </div>
       </div>
 
       <MessageFeed
