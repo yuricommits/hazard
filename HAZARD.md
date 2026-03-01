@@ -22,12 +22,12 @@ Hazard is a powerful developer-first chat application. It competes directly with
 - **TypeScript** — strict mode, non-negotiable
 - **Tailwind CSS** — utility-first styling
 - **shadcn/ui** — component primitives, fully owned (zinc theme, New York style)
-- **Framer Motion** — micro-interactions and animations (not yet implemented)
+- **Framer Motion** — micro-interactions and animations
 - **JetBrains Mono** — font for all code rendering (not yet implemented)
 
 ### Backend & Infrastructure
 - **Supabase** — entire backend:
-  - PostgreSQL (primary database, 10 tables)
+  - PostgreSQL (primary database, 11 tables)
   - Auth (email auth, no email confirmation in dev)
   - Realtime (live messages + reactions working across tabs)
   - Storage (not yet implemented)
@@ -121,27 +121,35 @@ hazard/
 │   │   │   └── create-workspace/
 │   │   │       └── page.tsx
 │   │   ├── api/
-│   │   │   └── ai/
-│   │   │       └── route.ts           # Streaming AI endpoint (Anthropic claude-sonnet-4-6)
+│   │   │   ├── ai/
+│   │   │   │   └── route.ts           # Streaming AI endpoint (Anthropic claude-sonnet-4-6)
+│   │   │   └── workspace/
+│   │   │       └── join/
+│   │   │           └── route.ts       # POST — validate invite token, add member, increment use_count
 │   │   ├── layout.tsx
-│   │   └── page.tsx
+│   │   └── page.tsx                   # Discord-style workspace picker (multi-workspace)
 │   ├── components/
 │   │   ├── ui/                        # shadcn/ui primitives
 │   │   ├── chat/
 │   │   │   ├── message-feed.tsx       # real-time feed, reactions, reply count, AI grouping
-│   │   │   ├── message-composer.tsx   # send messages + @hazard detection
+│   │   │   ├── message-composer.tsx   # send messages + @hazard detection, styled placeholder
 │   │   │   ├── message-content.tsx    # markdown + syntax highlighting
 │   │   │   ├── reaction-button.tsx    # emoji reactions with optimistic updates
-│   │   │   ├── thread-panel.tsx       # thread replies panel
+│   │   │   ├── thread-panel.tsx       # thread replies panel, drag-to-resize
 │   │   │   ├── typing-indicator.tsx   # typing + hazard thinking indicator
 │   │   │   ├── ai-message.tsx         # distinct AI message component
-│   │   │   ├── ai-panel.tsx           # dedicated AI side panel
+│   │   │   ├── ai-panel.tsx           # dedicated AI side panel, drag-to-resize
 │   │   │   └── ai-channel-sync.tsx    # syncs current channel to AI panel store
-│   │   └── sidebar/
-│   │       ├── channel-list.tsx
-│   │       ├── create-channel-button.tsx
-│   │       ├── sign-out-button.tsx
-│   │       └── ai-panel-button.tsx
+│   │   ├── sidebar/
+│   │   │   ├── app-sidebar.tsx        # collapsible sidebar + settings gear button
+│   │   │   ├── create-channel-button.tsx
+│   │   │   ├── sign-out-button.tsx
+│   │   │   ├── ai-panel-button.tsx
+│   │   │   ├── channel-list.tsx
+│   │   │   └── workspace-presence.tsx
+│   │   └── workspace/
+│   │       ├── workspace-picker.tsx         # Discord-style picker, create + join modals
+│   │       └── workspace-settings-modal.tsx # invite link generation, copy, revoke
 │   ├── lib/
 │   │   ├── supabase/
 │   │   │   ├── client.ts
@@ -149,14 +157,16 @@ hazard/
 │   │   │   ├── middleware.ts
 │   │   │   └── threads.ts
 │   │   ├── db/
-│   │   │   ├── schema.ts              # Drizzle schema (10 tables)
+│   │   │   ├── schema.ts              # Drizzle schema (11 tables)
 │   │   │   └── index.ts
 │   │   ├── validations/
 │   │   │   └── auth.ts
 │   │   └── utils.ts
 │   ├── stores/
 │   │   ├── thread-store.ts
-│   │   └── ai-panel-store.ts
+│   │   ├── ai-panel-store.ts
+│   │   ├── sidebar-store.ts
+│   │   └── presence-store.ts
 │   ├── types/
 │   │   └── index.ts
 │   └── proxy.ts
@@ -177,12 +187,14 @@ hazard/
 ### Real-time Strategy
 - Supabase Realtime enabled on messages + reactions tables
 - reactions table has REPLICA IDENTITY FULL
+- messages table has REPLICA IDENTITY FULL
 - Typing indicators + "Hazard is thinking..." via Supabase Presence
 
 ### RLS Policies (Current — open for dev, tighten before ship)
 - profiles: select all authenticated, update own
 - workspaces/channels/members: all authenticated (open)
 - messages: select/insert all, update/delete own
+- workspace_invites: authenticated can read; owner/admin can insert/update
 
 ---
 
@@ -192,6 +204,7 @@ hazard/
 - `profiles` — extends Supabase auth.users
 - `workspaces` — top level organization unit
 - `workspace_members` — users ↔ workspaces (roles: owner, admin, member)
+- `workspace_invites` — invite links with token, expiry, max_uses, use_count, is_active
 - `channels` — belongs to workspace (public/private)
 - `channel_members` — users ↔ channels
 - `messages` — belongs to channel. Fields: `is_ai` (AI flag), `parent_message_id` (links AI response to triggering message), `thread_id`
@@ -224,13 +237,20 @@ hazard/
 - [x] AI response visually grouped under triggering message (parent_message_id)
 - [x] User presence (online/offline)
 - [x] UI polish pass (ongoing)
+- [x] Thread + AI panels — drag-to-resize (240–520px), violet handle indicator
+- [x] AI panel — branded empty state with suggestion chips
+- [x] Thread panel — icon + reply count in header, improved empty state
+- [x] MessageComposer — styled @hazard placeholder with violet tint
+- [x] Workspace picker — Discord-style, multi-workspace support
+- [x] Workspace invites — token-based, expiry, revoke, use_count
+- [x] Workspace settings modal — generate/copy/revoke invite links from sidebar gear button
 
 ### Next Up
 - [ ] Test full AI flow end to end with Anthropic credits
 - [ ] AI panel context pill timing fix (opens before channel syncs)
-- [ ] UI polish pass
+- [ ] Cmd+K search — wire up Search button
+- [ ] Members panel — wire up Members button
 - [ ] Slash commands (/deploy, /run, /pr, /ai)
-- [ ] Cmd+K search
 - [ ] Keyboard-first navigation
 - [ ] Git bot integration
 - [ ] File uploads
@@ -257,8 +277,7 @@ hazard/
 - Husky + Commitlint setup
 - Custom scrollbar styling
 - Rate limiting for AI (Upstash Redis)
-- Sliding panels (thread + AI) — shadcn Sheet + Framer Motion
-- Sliding Thread + AI panels — Framer Motion (next polish target)
+- Workspace switcher in sidebar (multi-workspace nav)
 
 ---
 
@@ -288,13 +307,14 @@ hazard/
 | 12 | User presence. presence-store.ts (Zustand), WorkspacePresence component (workspace-level Supabase Presence channel). Online dot on sidebar user row + message avatars. Panels (thread + AI) flagged for Framer Motion + shadcn Sheet polish later. |
 | 12 | ... + Fixed real-time messages: removed double filter on Realtime subscription, added REPLICA IDENTITY FULL to messages table. |
 | 13 | UI polish: message grouping, reaction + collapse animation, collapsible sidebar (Framer Motion spring), AI + Thread panel slide animations, removed global scrollbars, hydration warning fix on CreateChannelButton, thread panel always-mounted for faster open, handleReply optimized to remove blocking auth call. |
+| 13 (cont.) | Channel header polish — message count, divider, Search and Members placeholder buttons. |
+| 14 | UI polish: AI panel empty state + suggestion chips, thread panel header icon + reply count, message composer @hazard violet placeholder. Drag-to-resize for thread + AI panels (240–520px, violet handle, ref-based listeners to avoid circular useCallback). Workspace invites: workspace_invites table + migration + RLS, POST /api/workspace/join, workspace-picker (Discord-style multi-workspace), workspace-settings-modal (generate/copy/revoke invite links), settings gear button in sidebar. |
+
 ---
 
-> Last updated: Session 13
 > Next session:
-> - Channel header polish
-> - Message composer polish
+> - Test full AI flow end to end with Anthropic credits
 > - AI panel context pill timing fix
-> - Thread panel open delay (investigate pre-fetching)
-> - Cmd+K search
+> - Cmd+K search — wire up Search button
+> - Members panel — wire up Members button
 > - Slash commands
