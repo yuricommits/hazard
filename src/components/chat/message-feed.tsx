@@ -28,6 +28,7 @@ type Message = {
   user_id: string;
   channel_id: string;
   thread_id: string | null;
+  parent_message_id: string | null;
   is_ai: boolean;
   profiles: Profile | null;
   reactions: Reaction[];
@@ -119,7 +120,7 @@ export default function MessageFeed({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Subscription: new messages in this channel (main feed only)
+  // Subscription: new messages in this channel
   useEffect(() => {
     const channel = supabase
       .channel(`messages:${channelId}`)
@@ -249,6 +250,21 @@ export default function MessageFeed({
     };
   }, [channelId]);
 
+  // Build a map of parentMessageId → AI response
+  // AI messages with a parent_message_id are rendered grouped under their parent
+  // AI messages without a parent_message_id are rendered standalone (legacy/manual inserts)
+  const aiResponseMap = messages.reduce<Record<string, Message>>((acc, m) => {
+    if (m.is_ai && m.parent_message_id) {
+      acc[m.parent_message_id] = m;
+    }
+    return acc;
+  }, {});
+
+  // Only render top-level messages — skip AI messages that have a parent (they render inline)
+  const topLevelMessages = messages.filter(
+    (m) => !(m.is_ai && m.parent_message_id),
+  );
+
   return (
     <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
       {messages.length === 0 && (
@@ -258,78 +274,87 @@ export default function MessageFeed({
           </p>
         </div>
       )}
-      {messages.map((message) => {
-        // AI messages get their own distinct component
+      {topLevelMessages.map((message) => {
+        // Standalone AI messages (no parent — legacy or manual inserts)
         if (message.is_ai) {
           return <AiMessage key={message.id} content={message.content} />;
         }
 
+        // Look up if this message has an AI response
+        const aiResponse = aiResponseMap[message.id];
+
         // Regular human messages
         return (
-          <div
-            key={message.id}
-            className="flex items-start gap-3 px-2 py-1 rounded-lg hover:bg-zinc-900/50 group relative"
-          >
-            {/* Hover actions */}
-            <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md px-1 py-0.5">
-              <button
-                onClick={() => handleReply(message.id)}
-                className="text-[11px] text-zinc-400 hover:text-zinc-50 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors"
-              >
-                Reply
-              </button>
-            </div>
-
-            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
-              {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
-            </div>
-
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-medium text-zinc-50">
-                  {message.profiles?.display_name ??
-                    message.profiles?.username ??
-                    "Unknown"}
-                </span>
-                <span className="text-[10px] text-zinc-600">
-                  {new Date(message.created_at).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
-
-              <MessageContent content={message.content} />
-
-              <ReactionButton
-                messageId={message.id}
-                reactions={message.reactions ?? []}
-                currentUserId={currentUserId}
-              />
-
-              {/* Thread reply count */}
-              {message.replyCount > 0 && (
+          <div key={message.id} className="flex flex-col">
+            <div className="flex items-start gap-3 px-2 py-1 rounded-lg hover:bg-zinc-900/50 group relative">
+              {/* Hover actions */}
+              <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md px-1 py-0.5">
                 <button
                   onClick={() => handleReply(message.id)}
-                  className="mt-1 flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-300 hover:underline transition-colors w-fit"
+                  className="text-[11px] text-zinc-400 hover:text-zinc-50 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors"
                 >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                  {message.replyCount}{" "}
-                  {message.replyCount === 1 ? "reply" : "replies"}
+                  Reply
                 </button>
-              )}
+              </div>
+
+              <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
+                {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
+              </div>
+
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm font-medium text-zinc-50">
+                    {message.profiles?.display_name ??
+                      message.profiles?.username ??
+                      "Unknown"}
+                  </span>
+                  <span className="text-[10px] text-zinc-600">
+                    {new Date(message.created_at).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+
+                <MessageContent content={message.content} />
+
+                <ReactionButton
+                  messageId={message.id}
+                  reactions={message.reactions ?? []}
+                  currentUserId={currentUserId}
+                />
+
+                {/* Thread reply count */}
+                {message.replyCount > 0 && (
+                  <button
+                    onClick={() => handleReply(message.id)}
+                    className="mt-1 flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-300 hover:underline transition-colors w-fit"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    {message.replyCount}{" "}
+                    {message.replyCount === 1 ? "reply" : "replies"}
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* AI response grouped below — indented with a connector line */}
+            {aiResponse && (
+              <div className="ml-11 pl-4 border-l-2 border-zinc-800 mt-0.5 mb-1">
+                <AiMessage content={aiResponse.content} />
+              </div>
+            )}
           </div>
         );
       })}

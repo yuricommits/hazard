@@ -24,7 +24,6 @@ export default function MessageComposer({
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Set up presence channel on mount
   useEffect(() => {
     const channel = supabase.channel(`typing:${channelId}`);
     channel.subscribe();
@@ -65,7 +64,6 @@ export default function MessageComposer({
 
     if (!data?.length) return "";
 
-    // Reverse so oldest is first, build readable context string
     return data
       .reverse()
       .map((m) => {
@@ -77,12 +75,18 @@ export default function MessageComposer({
   }
 
   async function sendAiMessage(prompt: string) {
-    // 1. Save the user's @hazard message to the channel
-    await supabase.from("messages").insert({
-      channel_id: channelId,
-      user_id: currentUserId,
-      content: message.trim(),
-    });
+    // 1. Save the user's @hazard message and capture its ID
+    const { data: userMessage } = await supabase
+      .from("messages")
+      .insert({
+        channel_id: channelId,
+        user_id: currentUserId,
+        content: message.trim(),
+      })
+      .select("id")
+      .single();
+
+    const parentMessageId = userMessage?.id ?? null;
 
     // 2. Show "Hazard is thinking..." to everyone
     broadcastHazardThinking(true);
@@ -105,7 +109,7 @@ export default function MessageComposer({
       return;
     }
 
-    // 5. Stop "thinking" indicator — response is starting
+    // 5. Stop "thinking" indicator
     broadcastHazardThinking(false);
 
     // 6. Stream the response and collect full content
@@ -119,12 +123,13 @@ export default function MessageComposer({
       fullContent += decoder.decode(value, { stream: true });
     }
 
-    // 7. Save the complete AI response to the database
+    // 7. Save AI response linked to the triggering message
     await supabase.from("messages").insert({
       channel_id: channelId,
       user_id: currentUserId,
       content: fullContent,
       is_ai: true,
+      parent_message_id: parentMessageId,
     });
   }
 
@@ -138,14 +143,12 @@ export default function MessageComposer({
     const text = message.trim();
     setMessage("");
 
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
 
-    // Detect @hazard mention
     if (text.toLowerCase().startsWith("@hazard")) {
-      const prompt = text.slice(7).trim(); // strip "@hazard" prefix
+      const prompt = text.slice(7).trim();
       await sendAiMessage(prompt);
     } else {
       await supabase.from("messages").insert({

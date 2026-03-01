@@ -92,6 +92,7 @@ export const messages = pgTable("messages", {
     .notNull()
     .references(() => profiles.id, { onDelete: "cascade" }),
   threadId: uuid("thread_id"),
+  parentMessageId: uuid("parent_message_id"),
   content: text("content").notNull(),
   isEdited: boolean("is_edited").default(false).notNull(),
   isAi: boolean("is_ai").default(false).notNull(),
