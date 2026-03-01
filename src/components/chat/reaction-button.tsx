@@ -39,18 +39,21 @@ export default function ReactionButton({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const grouped = reactions.reduce<
-    Record<string, { count: number; hasReacted: boolean }>
-  >((acc, r) => {
-    if (!acc[r.emoji]) {
-      acc[r.emoji] = { count: 0, hasReacted: false };
-    }
-    acc[r.emoji].count++;
-    if (r.user_id === currentUserId) {
-      acc[r.emoji].hasReacted = true;
-    }
-    return acc;
-  }, {});
+  const grouped = reactions.reduce(
+    (acc: Record<string, { count: number; hasReacted: boolean }>, r) => {
+      if (!acc[r.emoji]) {
+        acc[r.emoji] = { count: 0, hasReacted: false };
+      }
+      acc[r.emoji].count++;
+      if (r.user_id === currentUserId) {
+        acc[r.emoji].hasReacted = true;
+      }
+      return acc;
+    },
+    {} as Record<string, { count: number; hasReacted: boolean }>,
+  );
+
+  const hasReactions = Object.keys(grouped).length > 0;
 
   async function handleReaction(emoji: string) {
     const existing = reactions.find(
@@ -58,11 +61,9 @@ export default function ReactionButton({
     );
 
     if (existing) {
-      // Optimistic remove
       setReactions((prev) => prev.filter((r) => r.id !== existing.id));
       await supabase.from("reactions").delete().eq("id", existing.id);
     } else {
-      // Optimistic add
       const temp: Reaction = {
         id: crypto.randomUUID(),
         emoji,
@@ -80,6 +81,31 @@ export default function ReactionButton({
   async function handleEmojiClick(emojiData: EmojiClickData) {
     setShowPicker(false);
     await handleReaction(emojiData.emoji);
+  }
+
+  if (!hasReactions && !showPicker) {
+    return (
+      <div className="relative">
+        <div className="h-0 overflow-hidden group-hover:h-6 transition-all duration-150">
+          <button
+            onClick={() => setShowPicker(true)}
+            className="mt-0.5 px-1.5 py-0.5 rounded-full text-xs border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600"
+          >
+            +
+          </button>
+        </div>
+        {showPicker && (
+          <div ref={pickerRef} className="absolute bottom-8 left-0 z-50">
+            <EmojiPicker
+              theme={Theme.DARK}
+              onEmojiClick={handleEmojiClick}
+              height={350}
+              width={300}
+            />
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -101,7 +127,7 @@ export default function ReactionButton({
         ))}
         <button
           onClick={() => setShowPicker((prev) => !prev)}
-          className="px-1.5 py-0.5 rounded-full text-xs border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 opacity-0 group-hover:opacity-100 transition-all"
+          className="max-w-0 group-hover:max-w-8 overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-full text-xs border border-transparent group-hover:border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 whitespace-nowrap px-1.5 py-0.5"
         >
           +
         </button>
@@ -120,19 +146,3 @@ export default function ReactionButton({
     </div>
   );
 }
-
-// What this does:
-
-// Groups reactions by emoji — shows 👍 3 instead of three separate 👍
-// hasReacted — if you've reacted, the button glows violet
-// Clicking an existing reaction you've made removes it (toggle)
-// + button opens the emoji picker
-// Click outside closes the picker
-// Picker sits above the message using absolute positioning
-
-// What changed:
-
-// Local reactions state — component manages its own reactions instead of relying on props. Fixes the duplicate bug
-// Optimistic updates — UI updates instantly before the database responds. Feels instant
-// + button uses opacity-0 group-hover:opacity-100 — invisible until hover but reactions always visible
-// useEffect syncs local state when props change from router.refresh()

@@ -38,6 +38,17 @@ type Message = {
 
 const supabase = createClient();
 
+function isGrouped(messages: Message[], index: number): boolean {
+  if (index === 0) return false;
+  const prev = messages[index - 1];
+  const curr = messages[index];
+  if (prev.user_id !== curr.user_id) return false;
+  if (prev.is_ai || curr.is_ai) return false;
+  const diff =
+    new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime();
+  return diff < 5 * 60 * 1000;
+}
+
 export default function MessageFeed({
   channelId,
   channelName,
@@ -76,7 +87,6 @@ export default function MessageFeed({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Fetch reply counts for all visible messages on mount
   useEffect(() => {
     async function fetchReplyCounts() {
       const messageIds = messages.map((m) => m.id);
@@ -122,7 +132,6 @@ export default function MessageFeed({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Subscription: new messages in this channel
   useEffect(() => {
     const channel = supabase
       .channel(`messages:${channelId}`)
@@ -132,9 +141,11 @@ export default function MessageFeed({
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `channel_id=eq.${channelId}&thread_id=is.null`,
+          filter: `channel_id=eq.${channelId}`,
         },
         async (payload) => {
+          if (payload.new.thread_id) return;
+
           const { data: profile } = await supabase
             .from("profiles")
             .select("id, username, display_name, avatar_url")
@@ -158,7 +169,6 @@ export default function MessageFeed({
     };
   }, [channelId]);
 
-  // Subscription: thread replies — increment reply count on parent message
   useEffect(() => {
     const channel = supabase
       .channel(`thread-replies:${channelId}`)
@@ -198,7 +208,6 @@ export default function MessageFeed({
     };
   }, [channelId]);
 
-  // Subscription: reaction inserts and deletes
   useEffect(() => {
     const channel = supabase
       .channel(`reactions:${channelId}`)
@@ -252,9 +261,6 @@ export default function MessageFeed({
     };
   }, [channelId]);
 
-  // Build a map of parentMessageId → AI response
-  // AI messages with a parent_message_id are rendered grouped under their parent
-  // AI messages without a parent_message_id are rendered standalone (legacy/manual inserts)
   const aiResponseMap = messages.reduce<Record<string, Message>>((acc, m) => {
     if (m.is_ai && m.parent_message_id) {
       acc[m.parent_message_id] = m;
@@ -262,13 +268,12 @@ export default function MessageFeed({
     return acc;
   }, {});
 
-  // Only render top-level messages — skip AI messages that have a parent (they render inline)
   const topLevelMessages = messages.filter(
     (m) => !(m.is_ai && m.parent_message_id),
   );
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
+    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-0">
       {messages.length === 0 && (
         <div className="flex items-center justify-center h-full">
           <p className="text-sm text-zinc-500">
@@ -276,19 +281,20 @@ export default function MessageFeed({
           </p>
         </div>
       )}
-      {topLevelMessages.map((message) => {
-        // Standalone AI messages (no parent — legacy or manual inserts)
+      {topLevelMessages.map((message, index) => {
+        const grouped = isGrouped(topLevelMessages, index);
+
         if (message.is_ai) {
           return <AiMessage key={message.id} content={message.content} />;
         }
 
-        // Look up if this message has an AI response
         const aiResponse = aiResponseMap[message.id];
 
-        // Regular human messages
         return (
           <div key={message.id} className="flex flex-col">
-            <div className="flex items-start gap-3 px-2 py-1 rounded-lg hover:bg-zinc-900/50 group relative">
+            <div
+              className={`flex items-start gap-3 px-2 rounded-lg hover:bg-zinc-900/50 group relative ${grouped ? "py-0.5" : "py-1 mt-1"}`}
+            >
               {/* Hover actions */}
               <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md px-1 py-0.5">
                 <button
@@ -299,31 +305,43 @@ export default function MessageFeed({
                 </button>
               </div>
 
-              <div className="relative shrink-0">
-                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">
-                  {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
-                </div>
-                {onlineUserIds.has(message.user_id) && (
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950" />
-                )}
-              </div>
-
-              {/*What changed: the avatar is now wrapped in a relative container so the dot can be positioned over it. onlineUserIds.has(message.user_id) checks the Zustand store — if that user is online, the same emerald dot appears. No new subscriptions, no extra fetches — it just reads from the store that's already being kept up to date by WorkspacePresence.*/}
-
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-medium text-zinc-50">
-                    {message.profiles?.display_name ??
-                      message.profiles?.username ??
-                      "Unknown"}
-                  </span>
-                  <span className="text-[10px] text-zinc-600">
+              {/* Avatar or grouped timestamp */}
+              {grouped ? (
+                <div className="w-8 shrink-0 flex items-center justify-center">
+                  <span className="text-[9px] text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity">
                     {new Date(message.created_at).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
                   </span>
                 </div>
+              ) : (
+                <div className="relative shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">
+                    {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
+                  </div>
+                  {onlineUserIds.has(message.user_id) && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950" />
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-col min-w-0">
+                {!grouped && (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-medium text-zinc-50">
+                      {message.profiles?.display_name ??
+                        message.profiles?.username ??
+                        "Unknown"}
+                    </span>
+                    <span className="text-[10px] text-zinc-600">
+                      {new Date(message.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                )}
 
                 <MessageContent content={message.content} />
 
@@ -333,7 +351,6 @@ export default function MessageFeed({
                   currentUserId={currentUserId}
                 />
 
-                {/* Thread reply count */}
                 {message.replyCount > 0 && (
                   <button
                     onClick={() => handleReply(message.id)}
@@ -358,7 +375,6 @@ export default function MessageFeed({
               </div>
             </div>
 
-            {/* AI response grouped below — indented with a connector line */}
             {aiResponse && (
               <div className="ml-11 pl-4 border-l-2 border-zinc-800 mt-0.5 mb-1">
                 <AiMessage content={aiResponse.content} />
