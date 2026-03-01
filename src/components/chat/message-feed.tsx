@@ -29,6 +29,7 @@ type Message = {
   thread_id: string | null;
   profiles: Profile | null;
   reactions: Reaction[];
+  replyCount: number;
 };
 
 const supabase = createClient();
@@ -44,7 +45,9 @@ export default function MessageFeed({
   initialMessages: Message[];
   currentUserId: string;
 }) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>(
+    initialMessages.map((m) => ({ ...m, replyCount: 0 })),
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
   const { openThread } = useThreadStore();
 
@@ -68,7 +71,59 @@ export default function MessageFeed({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Subscription: new messages in this channel
+  // Fetch reply counts for all visible messages on mount
+  useEffect(() => {
+    async function fetchReplycounts() {
+      const messageIds = messages.map((m) => m.id);
+      if (!messageIds.length) return;
+
+      // Step 1: get all threads whose parent message is in this feed
+      const { data: threads } = await supabase
+        .from("threads")
+        .select("id, message_id")
+        .in("message_id", messageIds);
+
+      if (!threads?.length) return;
+
+      const threadIds = threads.map((t) => t.id);
+
+      // Step 2: get all replies in those threads (just thread_id, no content needed)
+      const { data: replies } = await supabase
+        .from("messages")
+        .select("thread_id")
+        .in("thread_id", threadIds);
+
+      if (!replies?.length) return;
+
+      // Step 3: count replies per thread client-side
+      const countByThread: Record<string, number> = {};
+      replies.forEach((r) => {
+        if (r.thread_id) {
+          countByThread[r.thread_id] = (countByThread[r.thread_id] ?? 0) + 1;
+        }
+      });
+
+      // Step 4: map thread → parent message
+      const countByMessage: Record<string, number> = {};
+      threads.forEach((t) => {
+        countByMessage[t.message_id] = countByThread[t.id] ?? 0;
+      });
+
+      // Step 5: update state
+      setMessages((prev) =>
+        prev.map((m) => ({
+          ...m,
+          replyCount: countByMessage[m.id] ?? 0,
+        })),
+      );
+    }
+
+    fetchReplycounts();
+    // Only run on mount — real-time handles updates after that
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Subscription: new messages in this channel (main feed only)
   useEffect(() => {
     const channel = supabase
       .channel(`messages:${channelId}`)
@@ -91,9 +146,51 @@ export default function MessageFeed({
             ...(payload.new as Message),
             profiles: profile,
             reactions: [],
+            replyCount: 0,
           };
 
           setMessages((prev) => [...prev, newMessage]);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [channelId]);
+
+  // Subscription: thread replies — increment reply count on parent message
+  useEffect(() => {
+    const channel = supabase
+      .channel(`thread-replies:${channelId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `channel_id=eq.${channelId}`,
+        },
+        async (payload) => {
+          const threadId = payload.new.thread_id;
+          if (!threadId) return; // skip main messages, only care about replies
+
+          // Look up which parent message owns this thread
+          const { data: thread } = await supabase
+            .from("threads")
+            .select("message_id")
+            .eq("id", threadId)
+            .single();
+
+          if (!thread) return;
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === thread.message_id
+                ? { ...m, replyCount: m.replyCount + 1 }
+                : m,
+            ),
+          );
         },
       )
       .subscribe();
@@ -180,9 +277,11 @@ export default function MessageFeed({
               Reply
             </button>
           </div>
+
           <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
             {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
           </div>
+
           <div className="flex flex-col min-w-0">
             <div className="flex items-baseline gap-2">
               <span className="text-sm font-medium text-zinc-50">
@@ -197,12 +296,37 @@ export default function MessageFeed({
                 })}
               </span>
             </div>
+
             <MessageContent content={message.content} />
+
             <ReactionButton
               messageId={message.id}
               reactions={message.reactions ?? []}
               currentUserId={currentUserId}
             />
+
+            {/* Thread reply count */}
+            {message.replyCount > 0 && (
+              <button
+                onClick={() => handleReply(message.id)}
+                className="mt-1 flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-300 hover:underline transition-colors w-fit"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                {message.replyCount}{" "}
+                {message.replyCount === 1 ? "reply" : "replies"}
+              </button>
+            )}
           </div>
         </div>
       ))}
