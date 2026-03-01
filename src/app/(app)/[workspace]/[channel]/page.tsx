@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import MessageComposer from "@/components/chat/message-composer";
 import MessageFeed from "@/components/chat/message-feed";
 import TypingIndicator from "@/components/chat/typing-indicator";
+import AiChannelSync from "@/components/chat/ai-channel-sync";
 
 export default async function ChannelPage({
   params,
@@ -20,7 +21,6 @@ export default async function ChannelPage({
     redirect("/login");
   }
 
-  // Fetch profile to get display name for typing indicator
   const { data: profile } = await supabase
     .from("profiles")
     .select("display_name, username")
@@ -62,6 +62,9 @@ export default async function ChannelPage({
 
   return (
     <div className="flex flex-col h-full">
+      {/* Syncs current channel to AI panel store */}
+      <AiChannelSync channelId={channel.id} channelName={channel.name} />
+
       <div className="h-12 border-b border-zinc-800 flex items-center px-4 shrink-0">
         <span className="text-zinc-600 mr-1">#</span>
         <h1 className="text-sm font-semibold text-zinc-50">{channel.name}</h1>

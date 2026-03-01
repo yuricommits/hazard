@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import MessageContent from "@/components/chat/message-content";
+import AiMessage from "@/components/chat/ai-message";
 import { useThreadStore } from "@/stores/thread-store";
 import { getOrCreateThread } from "@/lib/supabase/threads";
 import ReactionButton from "@/components/chat/reaction-button";
@@ -27,6 +28,7 @@ type Message = {
   user_id: string;
   channel_id: string;
   thread_id: string | null;
+  is_ai: boolean;
   profiles: Profile | null;
   reactions: Reaction[];
   replyCount: number;
@@ -73,11 +75,10 @@ export default function MessageFeed({
 
   // Fetch reply counts for all visible messages on mount
   useEffect(() => {
-    async function fetchReplycounts() {
+    async function fetchReplyCounts() {
       const messageIds = messages.map((m) => m.id);
       if (!messageIds.length) return;
 
-      // Step 1: get all threads whose parent message is in this feed
       const { data: threads } = await supabase
         .from("threads")
         .select("id, message_id")
@@ -87,7 +88,6 @@ export default function MessageFeed({
 
       const threadIds = threads.map((t) => t.id);
 
-      // Step 2: get all replies in those threads (just thread_id, no content needed)
       const { data: replies } = await supabase
         .from("messages")
         .select("thread_id")
@@ -95,7 +95,6 @@ export default function MessageFeed({
 
       if (!replies?.length) return;
 
-      // Step 3: count replies per thread client-side
       const countByThread: Record<string, number> = {};
       replies.forEach((r) => {
         if (r.thread_id) {
@@ -103,13 +102,11 @@ export default function MessageFeed({
         }
       });
 
-      // Step 4: map thread → parent message
       const countByMessage: Record<string, number> = {};
       threads.forEach((t) => {
         countByMessage[t.message_id] = countByThread[t.id] ?? 0;
       });
 
-      // Step 5: update state
       setMessages((prev) =>
         prev.map((m) => ({
           ...m,
@@ -118,8 +115,7 @@ export default function MessageFeed({
       );
     }
 
-    fetchReplycounts();
-    // Only run on mount — real-time handles updates after that
+    fetchReplyCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -173,9 +169,8 @@ export default function MessageFeed({
         },
         async (payload) => {
           const threadId = payload.new.thread_id;
-          if (!threadId) return; // skip main messages, only care about replies
+          if (!threadId) return;
 
-          // Look up which parent message owns this thread
           const { data: thread } = await supabase
             .from("threads")
             .select("message_id")
@@ -263,73 +258,81 @@ export default function MessageFeed({
           </p>
         </div>
       )}
-      {messages.map((message) => (
-        <div
-          key={message.id}
-          className="flex items-start gap-3 px-2 py-1 rounded-lg hover:bg-zinc-900/50 group relative"
-        >
-          {/* Hover actions */}
-          <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md px-1 py-0.5">
-            <button
-              onClick={() => handleReply(message.id)}
-              className="text-[11px] text-zinc-400 hover:text-zinc-50 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors"
-            >
-              Reply
-            </button>
-          </div>
+      {messages.map((message) => {
+        // AI messages get their own distinct component
+        if (message.is_ai) {
+          return <AiMessage key={message.id} content={message.content} />;
+        }
 
-          <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
-            {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
-          </div>
-
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-baseline gap-2">
-              <span className="text-sm font-medium text-zinc-50">
-                {message.profiles?.display_name ??
-                  message.profiles?.username ??
-                  "Unknown"}
-              </span>
-              <span className="text-[10px] text-zinc-600">
-                {new Date(message.created_at).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-
-            <MessageContent content={message.content} />
-
-            <ReactionButton
-              messageId={message.id}
-              reactions={message.reactions ?? []}
-              currentUserId={currentUserId}
-            />
-
-            {/* Thread reply count */}
-            {message.replyCount > 0 && (
+        // Regular human messages
+        return (
+          <div
+            key={message.id}
+            className="flex items-start gap-3 px-2 py-1 rounded-lg hover:bg-zinc-900/50 group relative"
+          >
+            {/* Hover actions */}
+            <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md px-1 py-0.5">
               <button
                 onClick={() => handleReply(message.id)}
-                className="mt-1 flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-300 hover:underline transition-colors w-fit"
+                className="text-[11px] text-zinc-400 hover:text-zinc-50 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors"
               >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                {message.replyCount}{" "}
-                {message.replyCount === 1 ? "reply" : "replies"}
+                Reply
               </button>
-            )}
+            </div>
+
+            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
+              {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
+            </div>
+
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm font-medium text-zinc-50">
+                  {message.profiles?.display_name ??
+                    message.profiles?.username ??
+                    "Unknown"}
+                </span>
+                <span className="text-[10px] text-zinc-600">
+                  {new Date(message.created_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+
+              <MessageContent content={message.content} />
+
+              <ReactionButton
+                messageId={message.id}
+                reactions={message.reactions ?? []}
+                currentUserId={currentUserId}
+              />
+
+              {/* Thread reply count */}
+              {message.replyCount > 0 && (
+                <button
+                  onClick={() => handleReply(message.id)}
+                  className="mt-1 flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-300 hover:underline transition-colors w-fit"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  {message.replyCount}{" "}
+                  {message.replyCount === 1 ? "reply" : "replies"}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       <div ref={bottomRef} />
     </div>
   );

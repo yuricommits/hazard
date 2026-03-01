@@ -27,7 +27,7 @@ Hazard is a powerful developer-first chat application. It competes directly with
 
 ### Backend & Infrastructure
 - **Supabase** — entire backend:
-  - PostgreSQL (primary database, 9 tables)
+  - PostgreSQL (primary database, 10 tables)
   - Auth (email auth, no email confirmation in dev)
   - Realtime (live messages working across tabs)
   - Storage (not yet implemented)
@@ -35,13 +35,13 @@ Hazard is a powerful developer-first chat application. It competes directly with
 - **Cloudflare R2** — CDN for media uploads (not yet implemented)
 
 ### AI
-- **Vercel AI SDK** — streaming, model switching, tool calling (not yet implemented)
-- **Anthropic Claude API** — Hazard AI brain (not yet implemented)
+- **Vercel AI SDK** (`ai` + `@ai-sdk/anthropic`) — streaming, installed ✓
+- **Anthropic Claude API** — `claude-sonnet-4-6` — API route built, needs credits to test
 
 ### Developer Experience
 - **Drizzle ORM** — type-safe database schema and queries
 - **Zod** — schema validation (forms → API → database)
-- **Zustand** — lightweight client state (not yet implemented)
+- **Zustand** — lightweight client state
 - **React Hook Form** — form handling
 - **nuqs** — URL state management (not yet implemented)
 
@@ -51,7 +51,7 @@ Hazard is a powerful developer-first chat application. It competes directly with
 - **Commitlint** — conventional commits (not yet implemented)
 
 ### Deployment
-- **Vercel** — frontend + edge functions (project created, not yet deployed)
+- **Vercel** — frontend + edge functions (live)
 - **Supabase Cloud** — managed backend (live)
 
 ---
@@ -119,35 +119,51 @@ hazard/
 │   │   │   │   └── page.tsx
 │   │   │   └── create-workspace/
 │   │   │       └── page.tsx
+│   │   ├── api/
+│   │   │   └── ai/
+│   │   │       └── route.ts           # Streaming AI endpoint
 │   │   ├── layout.tsx
 │   │   └── page.tsx
 │   ├── components/
-│   │   ├── ui/                     # shadcn/ui primitives
+│   │   ├── ui/                        # shadcn/ui primitives
 │   │   ├── chat/
-│   │   │   ├── message-feed.tsx    # real-time message feed
-│   │   │   └── message-composer.tsx # send messages
+│   │   │   ├── message-feed.tsx       # real-time message feed + reactions + reply count
+│   │   │   ├── message-composer.tsx   # send messages + @hazard detection
+│   │   │   ├── message-content.tsx    # markdown + syntax highlighting
+│   │   │   ├── reaction-button.tsx    # emoji reactions with optimistic updates
+│   │   │   ├── thread-panel.tsx       # thread replies panel
+│   │   │   ├── typing-indicator.tsx   # typing + hazard thinking indicator
+│   │   │   ├── ai-message.tsx         # distinct AI message in feed
+│   │   │   ├── ai-panel.tsx           # dedicated AI side panel
+│   │   │   └── ai-channel-sync.tsx    # syncs current channel to AI panel store
 │   │   └── sidebar/
-│   │       ├── channel-list.tsx    # active channel highlight
+│   │       ├── channel-list.tsx
 │   │       ├── create-channel-button.tsx
-│   │       └── sign-out-button.tsx
+│   │       ├── sign-out-button.tsx
+│   │       └── ai-panel-button.tsx    # opens/closes AI panel from sidebar
 │   ├── lib/
 │   │   ├── supabase/
-│   │   │   ├── client.ts           # browser client
-│   │   │   ├── server.ts           # server client
-│   │   │   └── middleware.ts       # session refresh helper
+│   │   │   ├── client.ts
+│   │   │   ├── server.ts
+│   │   │   ├── middleware.ts
+│   │   │   └── threads.ts
 │   │   ├── db/
-│   │   │   ├── schema.ts           # Drizzle schema (9 tables)
-│   │   │   └── index.ts            # Drizzle client
+│   │   │   ├── schema.ts              # Drizzle schema (10 tables)
+│   │   │   └── index.ts
 │   │   ├── validations/
-│   │   │   └── auth.ts             # Zod schemas for auth forms
-│   │   └── utils.ts                # shadcn utility
+│   │   │   └── auth.ts
+│   │   └── utils.ts
+│   ├── stores/
+│   │   ├── thread-store.ts            # Zustand store for thread panel
+│   │   └── ai-panel-store.ts          # Zustand store for AI panel
 │   ├── types/
-│   │   └── index.ts                # TypeScript types from Drizzle
-│   └── proxy.ts                    # Next.js 16 route protection
+│   │   └── index.ts
+│   └── proxy.ts
 ├── supabase/
-│   └── migrations/                 # Generated SQL migrations
+│   └── migrations/
 ├── drizzle.config.ts
 ├── HAZARD.md
+├── HAZARD-AI.md
 └── .env.local
 ```
 
@@ -158,13 +174,12 @@ hazard/
 - Session managed via cookies (server + browser clients)
 
 ### Real-time Strategy
-- Supabase Realtime enabled on messages table
-- Client subscribes to INSERT events filtered by channel_id
-- Initial messages fetched server-side, passed as props
-- New messages appended to state via Realtime subscription
+- Supabase Realtime enabled on messages + reactions tables
+- reactions table has REPLICA IDENTITY FULL (required for DELETE events)
+- Typing indicators + "Hazard is thinking..." via Supabase Presence
 
 ### RLS Policies (Current — open for dev, tighten before ship)
-- profiles: select own, update own
+- profiles: select all authenticated, update own
 - workspaces: all authenticated users (open)
 - workspace_members: all authenticated users (open)
 - channels: all authenticated users (open)
@@ -176,15 +191,16 @@ hazard/
 ## DATABASE SCHEMA (DONE ✓)
 
 ### Tables
-- `profiles` — extends Supabase auth.users (trigger auto-creates on signup)
+- `profiles` — extends Supabase auth.users
 - `workspaces` — top level organization unit
 - `workspace_members` — users ↔ workspaces (roles: owner, admin, member)
 - `channels` — belongs to workspace (public/private)
 - `channel_members` — users ↔ channels
-- `messages` — belongs to channel, real-time enabled
+- `messages` — belongs to channel, real-time enabled. `is_ai` flag for AI messages
 - `threads` — belongs to a parent message
-- `reactions` — belongs to message, belongs to user
+- `reactions` — belongs to message. Realtime enabled. REPLICA IDENTITY FULL.
 - `files` — uploaded files/images, linked to messages
+- `ai_conversations` — AI panel history per user per workspace (role, content)
 
 ---
 
@@ -202,14 +218,17 @@ hazard/
 - [x] Auto-expanding composer
 - [x] Threads with real-time replies
 - [x] Emoji reactions with optimistic updates
+- [x] Reactions real-time sync across tabs
+- [x] Thread reply count indicator with real-time updates
+- [x] Typing indicators with Supabase Presence
+- [x] Hazard AI — API route, @hazard detection, AI message component, AI panel
 
 ### Next Up
-- [ ] Reactions real-time (no page refresh needed)
-- [ ] Thread reply count indicator on messages
-- [ ] Typing indicators
+- [ ] Add Anthropic credits and test full AI flow end to end
+- [ ] Connect @hazard response visually to the triggering message (reply-style grouping)
+- [ ] AI panel context pill timing fix (opens before channel syncs)
 - [ ] User presence (online/offline)
-- [ ] Hazard AI integration
-- [ ] UI polish pass with v0 design
+- [ ] UI polish pass
 - [ ] Slash commands (/deploy, /run, /pr, /ai)
 - [ ] Cmd+K search
 - [ ] Keyboard-first navigation
@@ -227,7 +246,7 @@ hazard/
 - Custom bot API
 - Mobile app (React Native)
 - /ui slash command — generate UI components inline
-- IDE-like environment with AI as first-class citizen (separate big project)
+- IDE-like environment with AI as first-class citizen
 - Desktop app (Electron/Tauri)
 - Notification preferences
 - Message search with filters
@@ -238,7 +257,8 @@ hazard/
 - Move all SQL to supabase/policies.sql
 - Enable email confirmation with Resend (production)
 - Husky + Commitlint setup
-- Custom scrollbar styling (hide default, subtle custom)
+- Custom scrollbar styling
+- Rate limiting for AI (Upstash Redis)
 
 ---
 
@@ -254,20 +274,21 @@ hazard/
 
 | Session | What We Did |
 |---------|-------------|
-| 01 | Project vision, tech stack locked, Next.js 15 scaffolded, HAZARD.md created, GitHub + Supabase + Vercel set up, credentials secured |
-| 02 | Installed dependencies, Supabase client setup (browser, server, proxy), Drizzle ORM configured, full database schema written and migrated |
-| 03 | Auth pages built, Supabase trigger for profiles, route protection working, full auth flow tested |
-| 04 | Workspace creation, RLS policies, app layout shell, smart home redirect |
-| 05 | Channel creation, sidebar channel list, channel page layout, composer placeholder |
-| 06 | Message composer, real-time feed, Supabase Realtime enabled, messages working across tabs |
-| 07 | Active channel highlight, sign out button, auto-scroll, deployed to Vercel |
-| 08 | Markdown, syntax highlighting, auto-expanding composer, threads, emoji reactions with optimistic updates |
+| 01 | Project vision, tech stack locked, Next.js 15 scaffolded, HAZARD.md created, GitHub + Supabase + Vercel set up |
+| 02 | Dependencies, Supabase client setup, Drizzle ORM, full database schema |
+| 03 | Auth pages, Supabase trigger for profiles, route protection |
+| 04 | Workspace creation, RLS policies, app layout shell |
+| 05 | Channel creation, sidebar channel list, channel page layout |
+| 06 | Message composer, real-time feed, Supabase Realtime |
+| 07 | Active channel highlight, sign out, auto-scroll, deployed to Vercel |
+| 08 | Markdown, syntax highlighting, auto-expanding composer, threads, emoji reactions |
+| 09 | Reactions real-time sync. Enabled Realtime on reactions. REPLICA IDENTITY FULL. Removed router.refresh() |
+| 10 | Thread reply count (real-time). Typing indicators (Supabase Presence). Hazard AI: API route, @hazard detection, ai-message component, ai-panel with persistent history + context pill, ai-panel-store, ai-panel-button, ai-channel-sync |
 
 ---
 
-> Last updated: Session 08
-> Next session: 
-- Reactions real-time (no refresh needed)
-- Thread reply count on messages
-- Typing indicators
-- Then Hazard AI
+> Last updated: Session 10
+> Next session:
+> - Add Anthropic credits and test full AI flow
+> - Connect @hazard response visually to the triggering message (reply-style grouping)
+> - AI panel context pill timing fix

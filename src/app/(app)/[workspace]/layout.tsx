@@ -4,6 +4,8 @@ import CreateChannelButton from "@/components/sidebar/create-channel-button";
 import ChannelList from "@/components/sidebar/channel-list";
 import SignOutButton from "@/components/sidebar/sign-out-button";
 import ThreadPanel from "@/components/chat/thread-panel";
+import AiPanel from "@/components/chat/ai-panel";
+import AiPanelButton from "@/components/sidebar/ai-panel-button";
 
 export default async function WorkspaceLayout({
   children,
@@ -61,7 +63,10 @@ export default async function WorkspaceLayout({
             />
           </div>
         </div>
-        <div className="p-3 border-t border-zinc-800 shrink-0">
+
+        {/* AI Panel button + Sign out */}
+        <div className="p-3 border-t border-zinc-800 shrink-0 flex flex-col gap-2">
+          <AiPanelButton />
           <SignOutButton />
         </div>
       </aside>
@@ -70,17 +75,8 @@ export default async function WorkspaceLayout({
       <main className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col overflow-hidden">{children}</div>
         <ThreadPanel />
+        <AiPanel workspaceId={workspace.id} currentUserId={user.id} />
       </main>
     </div>
   );
 }
-
-// What this does:
-
-// params is a Promise in Next.js 15 — we await it to get the workspace slug from the URL
-// Fetches the workspace from Supabase by slug
-// If workspace doesn't exist, redirects to create one
-// Renders the 3 column shell — sidebar on the left, main content on the right
-// Channels list is empty for now, we'll fill it in next
-
-// What changed: The main area now has two children side by side — the channel content on the left and the thread panel on the right. The thread panel returns null when no thread is open so it takes up no space until needed.
