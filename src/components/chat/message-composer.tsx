@@ -1,32 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+
+const supabase = createClient();
 
 export default function MessageComposer({
   channelId,
   channelName,
+  currentUserId,
+  currentUserName,
 }: {
   channelId: string;
   channelName: string;
+  currentUserId: string;
+  currentUserName: string;
 }) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const supabase = createClient();
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(
+    null,
+  );
+
+  // Set up presence channel on mount
+  useEffect(() => {
+    const channel = supabase.channel(`typing:${channelId}`);
+    channel.subscribe();
+    presenceChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [channelId]);
+
+  function broadcastTyping(isTyping: boolean) {
+    presenceChannelRef.current?.track({
+      user_id: currentUserId,
+      name: currentUserName,
+      typing: isTyping,
+    });
+  }
 
   async function sendMessage() {
     if (!message.trim() || sending) return;
 
-    setSending(true);
+    // Clear typing indicator immediately on send
+    broadcastTyping(false);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+    setSending(true);
 
     const { error } = await supabase.from("messages").insert({
       channel_id: channelId,
-      user_id: user.id,
+      user_id: currentUserId,
       content: message.trim(),
     });
 
@@ -37,6 +64,21 @@ export default function MessageComposer({
     setSending(false);
   }
 
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setMessage(e.target.value);
+    e.target.style.height = "auto";
+    e.target.style.height = `${e.target.scrollHeight}px`;
+
+    // Broadcast typing: true
+    broadcastTyping(true);
+
+    // Reset the 2s debounce timer
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      broadcastTyping(false);
+    }, 2000);
+  }
+
   async function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -45,15 +87,11 @@ export default function MessageComposer({
   }
 
   return (
-    <div className="p-4 shrink-0">
+    <div className="px-4 pb-4 shrink-0">
       <div className="border border-zinc-800 rounded-lg px-4 py-3 focus-within:border-zinc-700 transition-colors">
         <textarea
           value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
-            e.target.style.height = "auto";
-            e.target.style.height = `${e.target.scrollHeight}px`;
-          }}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder={`Message #${channelName}`}
           rows={1}

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import MessageComposer from "@/components/chat/message-composer";
 import MessageFeed from "@/components/chat/message-feed";
+import TypingIndicator from "@/components/chat/typing-indicator";
 
 export default async function ChannelPage({
   params,
@@ -18,6 +19,16 @@ export default async function ChannelPage({
   if (!user) {
     redirect("/login");
   }
+
+  // Fetch profile to get display name for typing indicator
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name, username")
+    .eq("id", user.id)
+    .single();
+
+  const currentUserName =
+    profile?.display_name ?? profile?.username ?? "Someone";
 
   const { data: workspace } = await supabase
     .from("workspaces")
@@ -49,8 +60,6 @@ export default async function ChannelPage({
     .is("thread_id", null)
     .order("created_at", { ascending: true });
 
-  // What changed: .is("thread_id", null) — only fetch messages that don't belong to a thread. Replies stay in the thread panel only, main feed stays clean.
-
   return (
     <div className="flex flex-col h-full">
       <div className="h-12 border-b border-zinc-800 flex items-center px-4 shrink-0">
@@ -65,7 +74,14 @@ export default async function ChannelPage({
         currentUserId={user.id}
       />
 
-      <MessageComposer channelId={channel.id} channelName={channel.name} />
+      <TypingIndicator channelId={channel.id} currentUserId={user.id} />
+
+      <MessageComposer
+        channelId={channel.id}
+        channelName={channel.name}
+        currentUserId={user.id}
+        currentUserName={currentUserName}
+      />
     </div>
   );
 }
