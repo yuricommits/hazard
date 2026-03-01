@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import WorkspacePicker from "@/components/workspace/workspace-picker";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -12,30 +13,25 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const { data: membership } = await supabase
+  // Fetch ALL workspaces this user belongs to
+  const { data: memberships } = await supabase
     .from("workspace_members")
-    .select("workspace_id")
+    .select("role, workspaces(id, name, slug, icon_url)")
     .eq("user_id", user.id)
-    .limit(1)
-    .single();
+    .order("created_at", { ascending: true });
 
-  if (!membership) {
-    redirect("/create-workspace");
-  }
+  const workspaces = (memberships ?? [])
+    .map((m) => {
+      const ws = Array.isArray(m.workspaces) ? m.workspaces[0] : m.workspaces;
+      return ws ? { ...ws, role: m.role } : null;
+    })
+    .filter(Boolean) as {
+    id: string;
+    name: string;
+    slug: string;
+    icon_url: string | null;
+    role: string;
+  }[];
 
-  const { data: workspace } = await supabase
-    .from("workspaces")
-    .select("slug")
-    .eq("id", membership.workspace_id)
-    .single();
-
-  if (!workspace) {
-    redirect("/create-workspace");
-  }
-
-  redirect(`/${workspace.slug}`);
+  return <WorkspacePicker workspaces={workspaces} />;
 }
-
-// What changed: Now it checks if the user already belongs to a workspace and redirects there directly. Only sends to /create-workspace if they have none.
-
-// What changed: Instead of a join, two separate queries — first get the workspace_id from membership, then get the slug from workspaces. Simpler and no type issues. 🤙
