@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useThreadStore } from "@/stores/thread-store";
 import { createClient } from "@/lib/supabase/client";
 import MessageContent from "@/components/chat/message-content";
-import { motion, AnimatePresence } from "framer-motion";
 
 const supabase = createClient();
 
@@ -34,7 +34,6 @@ export default function ThreadPanel() {
   useEffect(() => {
     if (!openThreadId) return;
 
-    // Fetch existing replies
     async function fetchReplies() {
       const { data } = await supabase
         .from("messages")
@@ -47,7 +46,6 @@ export default function ThreadPanel() {
 
     fetchReplies();
 
-    // Subscribe to new replies
     const channel = supabase
       .channel(`thread:${openThreadId}`)
       .on(
@@ -93,7 +91,6 @@ export default function ThreadPanel() {
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Get the channel_id from the parent message
     const { data: parentMessage } = await supabase
       .from("messages")
       .select("channel_id")
@@ -121,15 +118,16 @@ export default function ThreadPanel() {
   }
 
   return (
-    <AnimatePresence>
+    <motion.aside
+      animate={{
+        width: openThreadId ? 288 : 0,
+        opacity: openThreadId ? 1 : 0,
+      }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden"
+    >
       {openThreadId && (
-        <motion.aside
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 288, opacity: 1 }}
-          exit={{ width: 0, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden"
-        >
+        <>
           {/* Header */}
           <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
             <span className="text-sm font-semibold text-zinc-50">Thread</span>
@@ -197,8 +195,8 @@ export default function ThreadPanel() {
               Enter to reply · Shift+Enter for new line
             </p>
           </div>
-        </motion.aside>
+        </>
       )}
-    </AnimatePresence>
+    </motion.aside>
   );
 }

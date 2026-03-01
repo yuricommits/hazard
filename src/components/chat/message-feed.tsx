@@ -68,14 +68,13 @@ export default function MessageFeed({
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
 
   async function handleReply(messageId: string) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+    // Open panel immediately — no network calls before this
+    openThread(null, messageId);
 
-    const threadId = await getOrCreateThread(messageId, user.id);
+    // Resolve/create thread in background
+    const threadId = await getOrCreateThread(messageId, currentUserId);
     if (threadId) {
-      openThread(threadId, messageId);
+      useThreadStore.getState().setThreadId(threadId);
     }
   }
 

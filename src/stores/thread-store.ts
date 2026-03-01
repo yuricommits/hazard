@@ -3,7 +3,8 @@ import { create } from "zustand";
 type ThreadStore = {
   openThreadId: string | null;
   openMessageId: string | null;
-  openThread: (threadId: string, messageId: string) => void;
+  openThread: (threadId: string | null, messageId: string) => void;
+  setThreadId: (threadId: string) => void;
   closeThread: () => void;
 };
 
@@ -12,6 +13,7 @@ export const useThreadStore = create<ThreadStore>((set) => ({
   openMessageId: null,
   openThread: (threadId, messageId) =>
     set({ openThreadId: threadId, openMessageId: messageId }),
+  setThreadId: (threadId) => set({ openThreadId: threadId }),
   closeThread: () => set({ openThreadId: null, openMessageId: null }),
 }));
 

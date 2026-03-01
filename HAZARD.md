@@ -288,6 +288,7 @@ hazard/
 | 12 | User presence. presence-store.ts (Zustand), WorkspacePresence component (workspace-level Supabase Presence channel). Online dot on sidebar user row + message avatars. Panels (thread + AI) flagged for Framer Motion + shadcn Sheet polish later. |
 | 12 | ... + Fixed real-time messages: removed double filter on Realtime subscription, added REPLICA IDENTITY FULL to messages table. |
 | 13 | UI polish pass. Consecutive message grouping (5min window, hides avatar/name). Reaction + button collapses to zero height, expands on hover. Collapsible sidebar with Framer Motion spring animation — collapses to 56px icon-only mode, state persisted via Zustand persist. sidebar-store.ts, app-sidebar.tsx, ai-panel-button.tsx updated. WorkspacePresence moved into AppSidebar. |
+| 13 (cont.) | Framer Motion slide-in/out animations for ThreadPanel and AiPanel. Removed global scrollbars. |
 ---
 
 > Last updated: Session 13

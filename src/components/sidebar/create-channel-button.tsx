@@ -89,7 +89,11 @@ export default function CreateChannelButton({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button className="w-full flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+        <button
+          suppressHydrationWarning
+          className="w-full flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+        >
+          {" "}
           <span>+</span>
           <span>Add channel</span>
         </button>
