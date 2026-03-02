@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useAiPanelStore } from "@/stores/ai-panel-store";
+import { Layers } from "lucide-react";
 
 export default function AiPanelButton({
   collapsed = false,
@@ -11,11 +12,8 @@ export default function AiPanelButton({
   const { isOpen, openPanel, closePanel } = useAiPanelStore();
 
   function handleClick() {
-    if (isOpen) {
-      closePanel();
-    } else {
-      openPanel("", "");
-    }
+    if (isOpen) closePanel();
+    else openPanel("", "");
   }
 
   return (
@@ -28,21 +26,8 @@ export default function AiPanelButton({
           : "text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800"
       } ${collapsed ? "justify-center" : ""}`}
     >
-      <div className="w-4 h-4 rounded-full flex items-center justify-center bg-linear-to-br from-violet-500 to-cyan-400 shrink-0">
-        <svg
-          width="8"
-          height="8"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 2L2 7l10 5 10-5-10-5z" />
-          <path d="M2 17l10 5 10-5" />
-          <path d="M2 12l10 5 10-5" />
-        </svg>
+      <div className="w-4 h-4 rounded-md flex items-center justify-center bg-linear-to-br from-violet-500 to-cyan-400 shrink-0">
+        <Layers size={8} strokeWidth={2.5} color="white" />
       </div>
       <AnimatePresence>
         {!collapsed && (
@@ -51,6 +36,7 @@ export default function AiPanelButton({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.1 }}
+            className="text-xs"
           >
             Hazard AI
           </motion.span>

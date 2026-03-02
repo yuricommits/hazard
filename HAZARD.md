@@ -263,17 +263,17 @@ hazard/
 - [x] Settings saves functional — display name, username, workspace name, slug
 
 ### Next Up
+- [ ] Inner app polish — message feed, composer, AI panel, thread panel, members panel (Vercel-style, Lucide icons)
 - [ ] Test full AI flow end to end with Anthropic credits
 - [ ] AI panel context pill timing fix
 - [ ] Cmd+K search
-- [ ] Slash commands (/deploy, /run, /pr, /ai)
-- [ ] Keyboard-first navigation
-- [ ] File uploads
+- [ ] Slash commands
 
 ---
 
 ## FEATURE BACKLOG (PARKED — DO NOT BUILD YET)
 
+- File Uploads
 - E2EE for private channels
 - Voice/video calls
 - AI code diff panel
@@ -327,6 +327,7 @@ hazard/
 | 14 | UI polish: AI panel empty state + suggestion chips, thread panel header icon + reply count, composer @hazard violet placeholder. Drag-to-resize panels. Workspace invites: workspace_invites table + migration + RLS, POST /api/workspace/join, workspace-picker, workspace-settings-modal, settings gear in sidebar. |
 | 15 | Unified settings overlay (Profile + Workspace, left nav, Vercel-style). User row → Profile, gear → Workspace. display_name passed from layout. Discord-style replies: reply-store.ts, composer quote bar, @mention prepended on send, Esc to cancel. Optional threads: hover "Thread" button only on threadless messages, "View thread" replaces Reply count. Threads dropdown in top bar (threads-button.tsx). Decided against reply_to_message_id — @mention sufficient for dev tool. |
 | 16 | Threads lazy creation — thread row only created on first message sent, not on click. Thread panel gated on openMessageId. ThreadsButton realtime updates + correct threadId on open. Members panel: members-panel-store, members-panel.tsx, members-panel-button.tsx, workspace-level members with online presence and role badges. Settings fixes: workspace UPDATE RLS policy added, router.refresh() after saves, removed cascading setState useEffect. |
+| 17 | UI polish pass: auth layout ambient glow → Vercel-style flat black. Login/signup rewritten — no card, white CTA, subtle border inputs, animated error banner, spinner. Workspace picker same treatment — flat rows, zinc owner badge, white primary. Sidebar: removed redundant SignOutButton, active channel layoutId indicator, user row shows @username. Settings: router.refresh() after saves, fixed cascading setState warning. |
 ---
 
 > Next session:

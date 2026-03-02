@@ -5,18 +5,26 @@ import { useAiPanelStore } from "@/stores/ai-panel-store";
 import { createClient } from "@/lib/supabase/client";
 import MessageContent from "@/components/chat/message-content";
 import { motion, AnimatePresence } from "framer-motion";
+import { X, Hash, ArrowUp, Paperclip, RotateCcw } from "lucide-react";
 
 const supabase = createClient();
 
-const MIN_WIDTH = 240;
+const MIN_WIDTH = 260;
 const MAX_WIDTH = 520;
-const DEFAULT_WIDTH = 288;
+const DEFAULT_WIDTH = 320;
 
 type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
 };
+
+const suggestions = [
+  "Explain this codebase",
+  "Review recent changes",
+  "Debug an issue",
+  "Write a test",
+];
 
 export default function AiPanel({
   workspaceId,
@@ -36,13 +44,11 @@ export default function AiPanel({
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Drag refs — avoids circular useCallback dependency
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(DEFAULT_WIDTH);
   const handleMouseMove = useRef<(e: MouseEvent) => void>(() => {});
   const handleMouseUp = useRef<(e: MouseEvent) => void>(() => {});
 
-  // Load conversation history from database on mount
   useEffect(() => {
     async function loadHistory() {
       const { data } = await supabase
@@ -51,16 +57,11 @@ export default function AiPanel({
         .eq("user_id", currentUserId)
         .eq("workspace_id", workspaceId)
         .order("created_at", { ascending: true });
-
-      if (data?.length) {
-        setMessages(data as Message[]);
-      }
+      if (data?.length) setMessages(data as Message[]);
     }
-
     loadHistory();
   }, [currentUserId, workspaceId]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingContent]);
@@ -96,7 +97,6 @@ export default function AiPanel({
 
   async function getChannelContext(): Promise<string> {
     if (!channelId || !useContext) return "";
-
     const { data } = await supabase
       .from("messages")
       .select("content, profiles(display_name, username)")
@@ -105,9 +105,7 @@ export default function AiPanel({
       .eq("is_ai", false)
       .order("created_at", { ascending: false })
       .limit(10);
-
     if (!data?.length) return "";
-
     return data
       .reverse()
       .map((m) => {
@@ -118,10 +116,10 @@ export default function AiPanel({
       .join("\n");
   }
 
-  async function sendMessage() {
-    if (!input.trim() || isStreaming) return;
+  async function sendMessage(content?: string) {
+    const userContent = (content ?? input).trim();
+    if (!userContent || isStreaming) return;
 
-    const userContent = input.trim();
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
@@ -143,7 +141,6 @@ export default function AiPanel({
     setStreamingContent("");
 
     const channelContext = await getChannelContext();
-
     const apiMessages = [...messages, userMessage].map((m) => ({
       role: m.role,
       content: m.content,
@@ -167,8 +164,7 @@ export default function AiPanel({
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      fullContent += chunk;
+      fullContent += decoder.decode(value, { stream: true });
       setStreamingContent(fullContent);
     }
 
@@ -196,7 +192,6 @@ export default function AiPanel({
       .delete()
       .eq("user_id", currentUserId)
       .eq("workspace_id", workspaceId);
-
     setMessages([]);
     setStreamingContent("");
   }
@@ -207,12 +202,6 @@ export default function AiPanel({
       await sendMessage();
     }
   }
-
-  const suggestions = [
-    "Explain this codebase",
-    "Review recent changes",
-    "Debug an issue",
-  ];
 
   return (
     <AnimatePresence>
@@ -226,136 +215,107 @@ export default function AiPanel({
               ? { duration: 0 }
               : { type: "spring", stiffness: 300, damping: 30 }
           }
-          className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden relative"
+          className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden relative bg-black"
         >
-          {/* Drag handle — left edge */}
+          {/* Drag handle */}
           <div
             onMouseDown={onDragHandleMouseDown}
             className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 group"
           >
             <div
-              className={`absolute left-0 top-0 bottom-0 w-px transition-colors duration-150 ${
-                isDragging
-                  ? "bg-violet-500"
-                  : "bg-transparent group-hover:bg-violet-500/50"
-              }`}
+              className={`absolute left-0 top-0 bottom-0 w-px transition-colors duration-150 ${isDragging ? "bg-zinc-600" : "bg-transparent group-hover:bg-zinc-700"}`}
             />
           </div>
 
           {/* Header */}
-          <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center bg-linear-to-br from-violet-500 to-cyan-400 shrink-0">
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                  <path d="M2 17l10 5 10-5" />
-                  <path d="M2 12l10 5 10-5" />
-                </svg>
-              </div>
-              <span className="text-sm font-semibold bg-linear-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
-                Hazard AI
-              </span>
-            </div>
+          <div className="h-12 flex items-center justify-between px-3 shrink-0">
+            <button
+              onClick={closePanel}
+              className="w-8 h-8 flex items-center justify-center rounded-md text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900 transition-colors"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="7" height="18" rx="1" />
+                <path d="M14 9l3 3-3 3" />
+              </svg>
+            </button>
             <div className="flex items-center gap-1">
-              <button
-                onClick={clearHistory}
-                title="Clear history"
-                className="text-[11px] text-zinc-500 hover:text-zinc-300 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors"
-              >
-                Clear
-              </button>
-              <button
-                onClick={closePanel}
-                className="text-zinc-500 hover:text-zinc-300 transition-colors text-lg leading-none"
-              >
-                ×
-              </button>
+              {messages.length > 0 && (
+                <button
+                  onClick={clearHistory}
+                  title="New chat"
+                  className="flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all"
+                >
+                  <RotateCcw size={11} />
+                  New Chat
+                </button>
+              )}
+              {!messages.length && (
+                <button
+                  onClick={closePanel}
+                  className="w-8 h-8 flex items-center justify-center rounded-md text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
           </div>
 
           {/* Context pill */}
           {channelName && (
-            <div className="px-3 py-2 border-b border-zinc-800/50">
+            <div className="px-4 pb-2">
               {useContext ? (
-                <div className="flex items-center gap-1.5 w-fit bg-violet-500/10 border border-violet-500/20 rounded-full px-2 py-0.5">
-                  <span className="text-[11px] text-violet-400">
-                    Using #{channelName} context
+                <div className="flex items-center gap-1.5 w-fit bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-1">
+                  <Hash size={10} className="text-zinc-600" />
+                  <span className="text-[11px] text-zinc-500">
+                    {channelName}
                   </span>
                   <button
                     onClick={() => setUseContext(false)}
-                    className="text-violet-500 hover:text-violet-300 leading-none transition-colors"
+                    className="text-zinc-700 hover:text-zinc-400 transition-colors ml-0.5"
                   >
-                    ×
+                    <X size={10} />
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={() => setUseContext(true)}
-                  className="text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors"
+                  className="flex items-center gap-1.5 text-[11px] text-zinc-700 hover:text-zinc-500 transition-colors"
                 >
-                  + Add #{channelName} context
+                  <Hash size={10} />
+                  Add #{channelName} context
                 </button>
               )}
             </div>
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+          <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-5">
             {/* Empty state */}
             {messages.length === 0 && !isStreaming && (
-              <div className="flex flex-col items-center gap-4 mt-6 px-2">
-                <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-violet-500/15 to-cyan-400/15 border border-violet-500/20 flex items-center justify-center">
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    strokeWidth="1.75"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <defs>
-                      <linearGradient
-                        id="aiGrad"
-                        x1="0%"
-                        y1="0%"
-                        x2="100%"
-                        y2="100%"
-                      >
-                        <stop offset="0%" stopColor="#8b5cf6" />
-                        <stop offset="100%" stopColor="#22d3ee" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="url(#aiGrad)" />
-                    <path d="M2 17l10 5 10-5" stroke="url(#aiGrad)" />
-                    <path d="M2 12l10 5 10-5" stroke="url(#aiGrad)" />
-                  </svg>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs font-medium text-zinc-300">
-                    Your dev intelligence layer
+              <div className="flex flex-col gap-6 pt-4">
+                <div>
+                  <p className="text-xl font-semibold text-white tracking-tight">
+                    Hello there!
                   </p>
-                  <p className="text-[11px] text-zinc-600 mt-1 leading-relaxed">
-                    Ask about code, architecture,
-                    <br />
-                    or what&apos;s happening in this channel.
+                  <p className="text-sm text-zinc-500 mt-1">
+                    How can I help you today?
                   </p>
                 </div>
-                <div className="flex flex-col gap-1.5 w-full mt-1">
+                <div className="grid grid-cols-2 gap-2">
                   {suggestions.map((s) => (
                     <button
                       key={s}
-                      onClick={() => setInput(s)}
-                      className="text-left text-[11px] text-zinc-500 hover:text-zinc-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-lg px-3 py-2 transition-all"
+                      onClick={() => sendMessage(s)}
+                      className="text-left text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900 rounded-xl px-3 py-3 transition-all leading-relaxed"
                     >
                       {s}
                     </button>
@@ -364,73 +324,40 @@ export default function AiPanel({
               </div>
             )}
 
+            {/* Messages */}
             {messages.map((m) => (
-              <div key={m.id} className="flex flex-col gap-1">
+              <div key={m.id}>
                 {m.role === "user" ? (
                   <div className="flex justify-end">
-                    <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 max-w-[85%]">
-                      <p className="text-sm text-zinc-50">{m.content}</p>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tr-sm px-3.5 py-2.5 max-w-[85%]">
+                      <p className="text-sm text-zinc-100 leading-relaxed">
+                        {m.content}
+                      </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-start gap-2">
-                    <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center bg-linear-to-br from-violet-500 to-cyan-400 mt-0.5">
-                      <svg
-                        width="9"
-                        height="9"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                        <path d="M2 17l10 5 10-5" />
-                        <path d="M2 12l10 5 10-5" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <MessageContent content={m.content} />
-                    </div>
+                  <div className="text-sm text-zinc-200 leading-relaxed">
+                    <MessageContent content={m.content} />
                   </div>
                 )}
               </div>
             ))}
 
-            {/* Streaming response */}
+            {/* Streaming */}
             {isStreaming && (
-              <div className="flex items-start gap-2">
-                <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center bg-linear-to-br from-violet-500 to-cyan-400 mt-0.5">
-                  <svg
-                    width="9"
-                    height="9"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                    <path d="M2 17l10 5 10-5" />
-                    <path d="M2 12l10 5 10-5" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  {streamingContent ? (
-                    <div className="relative">
-                      <MessageContent content={streamingContent} />
-                      <span className="inline-block w-0.5 h-3.5 bg-violet-400 ml-0.5 align-middle animate-pulse" />
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-0.5 mt-1">
-                      <span className="w-1 h-1 rounded-full bg-violet-500 animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1 h-1 rounded-full bg-violet-500 animate-bounce [animation-delay:150ms]" />
-                      <span className="w-1 h-1 rounded-full bg-violet-500 animate-bounce [animation-delay:300ms]" />
-                    </div>
-                  )}
-                </div>
+              <div className="text-sm text-zinc-200 leading-relaxed">
+                {streamingContent ? (
+                  <div className="relative">
+                    <MessageContent content={streamingContent} />
+                    <span className="inline-block w-0.5 h-3.5 bg-zinc-400 ml-0.5 align-middle animate-pulse" />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 py-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 animate-bounce [animation-delay:0ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 animate-bounce [animation-delay:150ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 animate-bounce [animation-delay:300ms]" />
+                  </div>
+                )}
               </div>
             )}
 
@@ -439,7 +366,7 @@ export default function AiPanel({
 
           {/* Input */}
           <div className="p-3 shrink-0">
-            <div className="border border-zinc-800 rounded-lg px-3 py-2 focus-within:border-zinc-700 transition-colors">
+            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl focus-within:border-zinc-700 transition-colors">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -449,15 +376,30 @@ export default function AiPanel({
                   e.target.style.height = `${e.target.scrollHeight}px`;
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask Hazard AI..."
+                placeholder="Send a message..."
                 rows={1}
                 disabled={isStreaming}
-                className="w-full bg-transparent text-sm text-zinc-50 placeholder:text-zinc-600 resize-none outline-none max-h-32 overflow-y-auto disabled:opacity-50"
+                className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 resize-none outline-none max-h-32 overflow-y-auto px-4 pt-3 pb-2 disabled:opacity-50"
               />
+              <div className="flex items-center justify-between px-3 pb-2.5 pt-1">
+                <div className="flex items-center gap-2">
+                  <button className="text-zinc-600 hover:text-zinc-400 transition-colors">
+                    <Paperclip size={14} />
+                  </button>
+                  <span className="text-[11px] text-zinc-600 flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full bg-linear-to-br from-violet-500 to-cyan-400 inline-block" />
+                    Hazard AI
+                  </span>
+                </div>
+                <button
+                  onClick={() => sendMessage()}
+                  disabled={!input.trim() || isStreaming}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white hover:bg-zinc-200 disabled:bg-zinc-900 disabled:text-zinc-700 text-black transition-colors disabled:cursor-not-allowed"
+                >
+                  <ArrowUp size={14} strokeWidth={2.5} />
+                </button>
+              </div>
             </div>
-            <p className="text-[10px] text-zinc-600 mt-1 px-1">
-              Enter to send · Shift+Enter for new line
-            </p>
           </div>
         </motion.aside>
       )}

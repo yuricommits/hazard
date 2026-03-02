@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useReplyStore } from "@/stores/reply-store";
+import { CornerUpLeft, X, ArrowUp } from "lucide-react";
 
 const supabase = createClient();
 
@@ -24,14 +25,10 @@ export default function MessageComposer({
     null,
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   const { replyTo, clearReplyTo } = useReplyStore();
 
-  // When a reply is set, pre-fill the composer with @mention and focus
   useEffect(() => {
-    if (replyTo) {
-      setTimeout(() => textareaRef.current?.focus(), 0);
-    }
+    if (replyTo) setTimeout(() => textareaRef.current?.focus(), 0);
   }, [replyTo]);
 
   useEffect(() => {
@@ -70,9 +67,7 @@ export default function MessageComposer({
       .eq("is_ai", false)
       .order("created_at", { ascending: false })
       .limit(10);
-
     if (!data?.length) return "";
-
     return data
       .reverse()
       .map((m) => {
@@ -95,7 +90,6 @@ export default function MessageComposer({
       .single();
 
     const parentMessageId = userMessage?.id ?? null;
-
     broadcastHazardThinking(true);
     const channelContext = await getChannelContext();
 
@@ -108,17 +102,12 @@ export default function MessageComposer({
       }),
     });
 
-    if (!response.ok || !response.body) {
-      broadcastHazardThinking(false);
-      return;
-    }
-
     broadcastHazardThinking(false);
+    if (!response.ok || !response.body) return;
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullContent = "";
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -136,20 +125,16 @@ export default function MessageComposer({
 
   async function sendMessage() {
     if (!message.trim() || sending) return;
-
     broadcastTyping(false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-
     setSending(true);
+
     const text = replyTo
       ? `@${replyTo.username} ${message.trim()}`
       : message.trim();
     setMessage("");
     clearReplyTo();
-
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
 
     if (text.toLowerCase().startsWith("@hazard")) {
       const prompt = text.slice(7).trim();
@@ -169,12 +154,9 @@ export default function MessageComposer({
     setMessage(e.target.value);
     e.target.style.height = "auto";
     e.target.style.height = `${e.target.scrollHeight}px`;
-
     broadcastTyping(true);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      broadcastTyping(false);
-    }, 2000);
+    typingTimeoutRef.current = setTimeout(() => broadcastTyping(false), 2000);
   }
 
   async function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -192,26 +174,13 @@ export default function MessageComposer({
   return (
     <div className="px-4 pb-4 shrink-0">
       <div
-        className={`border border-zinc-800 rounded-lg focus-within:border-zinc-700 transition-colors ${replyTo ? "border-violet-500/30" : ""}`}
+        className={`bg-zinc-900 border rounded-xl transition-colors ${replyTo ? "border-violet-500/30" : "border-zinc-800 focus-within:border-zinc-700"}`}
       >
-        {/* Reply quote bar */}
+        {/* Reply bar */}
         {replyTo && (
-          <div className="flex items-center justify-between gap-2 px-4 pt-2.5 pb-2 border-b border-zinc-800">
+          <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-2 border-b border-zinc-800">
             <div className="flex items-center gap-2 min-w-0">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-violet-400 shrink-0"
-              >
-                <polyline points="9 17 4 12 9 7" />
-                <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-              </svg>
+              <CornerUpLeft size={11} className="text-violet-400 shrink-0" />
               <span className="text-[11px] text-zinc-500 shrink-0">
                 Replying to{" "}
                 <span className="text-violet-400 font-medium">
@@ -228,31 +197,16 @@ export default function MessageComposer({
                 setMessage("");
               }}
               className="text-zinc-600 hover:text-zinc-400 transition-colors shrink-0"
-              title="Cancel reply (Esc)"
             >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <X size={12} />
             </button>
           </div>
         )}
 
-        <div className="relative px-4 py-3">
+        {/* Textarea */}
+        <div className="relative px-3 pt-3 pb-2">
           {message === "" && (
-            <div
-              className="absolute inset-0 px-4 py-3 pointer-events-none text-sm leading-normal select-none"
-              aria-hidden="true"
-            >
+            <div className="absolute inset-0 px-3 pt-3 pointer-events-none text-sm leading-normal select-none">
               <span className="text-zinc-600">Message #{channelName} · </span>
               <span className="text-violet-500/60">@hazard</span>
               <span className="text-zinc-600"> to ask AI</span>
@@ -263,14 +217,24 @@ export default function MessageComposer({
             value={message}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder=""
             rows={1}
-            className="relative w-full bg-transparent text-sm text-zinc-50 placeholder:text-transparent resize-none outline-none max-h-48 overflow-y-auto"
+            className="relative w-full bg-transparent text-sm text-zinc-50 resize-none outline-none max-h-48 overflow-y-auto"
           />
+        </div>
+
+        {/* Bottom bar */}
+        <div className="flex items-center justify-end px-2 pb-2">
+          <button
+            onClick={sendMessage}
+            disabled={!message.trim() || sending}
+            className="w-7 h-7 flex items-center justify-center rounded-lg bg-white hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-600 text-black transition-colors disabled:cursor-not-allowed"
+          >
+            <ArrowUp size={14} strokeWidth={2.5} />
+          </button>
         </div>
       </div>
 
-      <p className="text-[10px] text-zinc-600 mt-1.5 px-1">
+      <p className="text-[10px] text-zinc-700 mt-1.5 px-1">
         Enter to send · Shift+Enter for new line · @hazard for AI
         {replyTo && " · Esc to cancel reply"}
       </p>
