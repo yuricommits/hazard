@@ -6,6 +6,7 @@ import { useThreadStore } from "@/stores/thread-store";
 import { createClient } from "@/lib/supabase/client";
 import MessageContent from "@/components/chat/message-content";
 import { getOrCreateThread } from "@/lib/supabase/threads";
+import { X, MessageSquare, ArrowUp } from "lucide-react";
 
 const supabase = createClient();
 
@@ -37,8 +38,8 @@ export default function ThreadPanel() {
   const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
   const [isDragging, setIsDragging] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Drag refs — avoids circular useCallback dependency
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(DEFAULT_WIDTH);
   const handleMouseMove = useRef<(e: MouseEvent) => void>(() => {});
@@ -53,7 +54,6 @@ export default function ThreadPanel() {
         .select("*, profiles(id, username, display_name, avatar_url)")
         .eq("thread_id", openThreadId)
         .order("created_at", { ascending: true });
-
       setReplies(data ?? []);
     }
 
@@ -75,12 +75,10 @@ export default function ThreadPanel() {
             .select("id, username, display_name, avatar_url")
             .eq("id", payload.new.user_id)
             .single();
-
           const newReply: Message = {
             ...(payload.new as Message),
             profiles: profile,
           };
-
           setReplies((prev) => [...prev, newReply]);
         },
       )
@@ -138,10 +136,8 @@ export default function ThreadPanel() {
       .select("channel_id")
       .eq("id", openMessageId)
       .single();
-
     if (!parentMessage) return;
 
-    // Create thread on first reply if it doesn't exist yet
     let threadId = openThreadId;
     if (!threadId) {
       threadId = await getOrCreateThread(openMessageId, user.id);
@@ -157,6 +153,7 @@ export default function ThreadPanel() {
     });
 
     setReply("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     setSending(false);
   }
 
@@ -178,41 +175,29 @@ export default function ThreadPanel() {
           ? { duration: 0 }
           : { type: "spring", stiffness: 300, damping: 30 }
       }
-      className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden relative"
+      className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden relative bg-black"
     >
       {openMessageId && (
         <>
-          {/* Drag handle — left edge */}
+          {/* Drag handle */}
           <div
             onMouseDown={onDragHandleMouseDown}
             className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 group"
           >
             <div
-              className={`absolute left-0 top-0 bottom-0 w-px transition-colors duration-150 ${
-                isDragging
-                  ? "bg-violet-500"
-                  : "bg-transparent group-hover:bg-violet-500/50"
-              }`}
+              className={`absolute left-0 top-0 bottom-0 w-px transition-colors duration-150 ${isDragging ? "bg-zinc-600" : "bg-transparent group-hover:bg-zinc-700"}`}
             />
           </div>
 
           {/* Header */}
-          <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
+          <div className="h-12 flex items-center justify-between px-4 shrink-0 border-b border-zinc-800">
             <div className="flex items-center gap-2">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-zinc-500 shrink-0"
-              >
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="text-sm font-semibold text-zinc-50">Thread</span>
+              <MessageSquare
+                size={13}
+                strokeWidth={1.5}
+                className="text-zinc-500"
+              />
+              <span className="text-sm font-medium text-zinc-200">Thread</span>
               {replies.length > 0 && (
                 <span className="text-[11px] text-zinc-600">
                   {replies.length} {replies.length === 1 ? "reply" : "replies"}
@@ -221,29 +206,21 @@ export default function ThreadPanel() {
             </div>
             <button
               onClick={closeThread}
-              className="text-zinc-500 hover:text-zinc-300 transition-colors text-lg leading-none"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
             >
-              ×
+              <X size={14} />
             </button>
           </div>
 
           {/* Replies */}
-          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-1">
+          <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
             {replies.length === 0 && (
-              <div className="flex flex-col items-center gap-2 mt-8">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-zinc-700"
-                >
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
+              <div className="flex flex-col items-center gap-2 mt-10">
+                <MessageSquare
+                  size={20}
+                  strokeWidth={1}
+                  className="text-zinc-800"
+                />
                 <p className="text-xs text-zinc-600">No replies yet</p>
                 <p className="text-[11px] text-zinc-700">
                   Be the first to reply
@@ -251,16 +228,13 @@ export default function ThreadPanel() {
               </div>
             )}
             {replies.map((r) => (
-              <div
-                key={r.id}
-                className="flex items-start gap-2 px-2 py-1 rounded-lg hover:bg-zinc-900/50"
-              >
-                <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
+              <div key={r.id} className="flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
                   {r.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
                 </div>
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xs font-medium text-zinc-50">
+                <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2 mb-0.5">
+                    <span className="text-xs font-medium text-zinc-200">
                       {r.profiles?.display_name ??
                         r.profiles?.username ??
                         "Unknown"}
@@ -279,10 +253,11 @@ export default function ThreadPanel() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Reply composer */}
+          {/* Composer */}
           <div className="p-3 shrink-0">
-            <div className="border border-zinc-800 rounded-lg px-3 py-2 focus-within:border-zinc-700 transition-colors">
+            <div className="bg-zinc-950 border border-zinc-800 rounded-xl focus-within:border-zinc-700 transition-colors">
               <textarea
+                ref={textareaRef}
                 value={reply}
                 onChange={(e) => {
                   setReply(e.target.value);
@@ -292,10 +267,19 @@ export default function ThreadPanel() {
                 onKeyDown={handleKeyDown}
                 placeholder="Reply..."
                 rows={1}
-                className="w-full bg-transparent text-sm text-zinc-50 placeholder:text-zinc-600 resize-none outline-none max-h-32 overflow-y-auto"
+                className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 resize-none outline-none max-h-32 overflow-y-auto px-3 pt-3 pb-2"
               />
+              <div className="flex items-center justify-end px-2 pb-2">
+                <button
+                  onClick={sendReply}
+                  disabled={!reply.trim() || sending}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white hover:bg-zinc-200 disabled:bg-zinc-900 disabled:text-zinc-700 text-black transition-colors disabled:cursor-not-allowed"
+                >
+                  <ArrowUp size={14} strokeWidth={2.5} />
+                </button>
+              </div>
             </div>
-            <p className="text-[10px] text-zinc-600 mt-1 px-1">
+            <p className="text-[10px] text-zinc-700 mt-1.5 px-1">
               Enter to reply · Shift+Enter for new line
             </p>
           </div>

@@ -263,8 +263,9 @@ hazard/
 - [x] Settings saves functional — display name, username, workspace name, slug
 
 ### Next Up
-- [ ] Inner app polish — message feed, composer, AI panel, thread panel, members panel (Vercel-style, Lucide icons)
-- [ ] Test full AI flow end to end with Anthropic credits
+- [ ] Inner workspace polish — message feed, channel header, thread panel, settings overlay, members panel, sidebar (Vercel-style, Lucide icons)
+  - Files needed: message-feed.tsx, thread-panel.tsx, threads-button.tsx, settings-overlay.tsx, channel/page.tsx, members-panel.tsx
+- [ ] Test full AI flow end to end
 - [ ] AI panel context pill timing fix
 - [ ] Cmd+K search
 - [ ] Slash commands
@@ -328,12 +329,12 @@ hazard/
 | 15 | Unified settings overlay (Profile + Workspace, left nav, Vercel-style). User row → Profile, gear → Workspace. display_name passed from layout. Discord-style replies: reply-store.ts, composer quote bar, @mention prepended on send, Esc to cancel. Optional threads: hover "Thread" button only on threadless messages, "View thread" replaces Reply count. Threads dropdown in top bar (threads-button.tsx). Decided against reply_to_message_id — @mention sufficient for dev tool. |
 | 16 | Threads lazy creation — thread row only created on first message sent, not on click. Thread panel gated on openMessageId. ThreadsButton realtime updates + correct threadId on open. Members panel: members-panel-store, members-panel.tsx, members-panel-button.tsx, workspace-level members with online presence and role badges. Settings fixes: workspace UPDATE RLS policy added, router.refresh() after saves, removed cascading setState useEffect. |
 | 17 | UI polish pass: auth layout ambient glow → Vercel-style flat black. Login/signup rewritten — no card, white CTA, subtle border inputs, animated error banner, spinner. Workspace picker same treatment — flat rows, zinc owner badge, white primary. Sidebar: removed redundant SignOutButton, active channel layoutId indicator, user row shows @username. Settings: router.refresh() after saves, fixed cascading setState warning. |
+| 18 | UI polish pass 2: Vercel-style applied to AI panel (no logo/avatar, greeting empty state, 2x2 suggestion grid, white send button, paperclip + model label in input bar), message composer (white send button, Lucide icons), ai-panel-button (Lucide Layers icon), create-channel-button (removed shadcn Dialog, custom modal). Auth pages finalized — pure black, floating content, white CTA. Workspace picker same treatment. |
 ---
 
 > Next session:
-> - Test full AI flow end to end with Anthropic credits
-> - AI panel context pill timing fix
+> - Inner workspace polish — message feed, channel header, thread panel, settings overlay, members panel, sidebar (Vercel-style, Lucide icons)
+> - Test full AI flow end to end with Anthropic credits - can wait
+> - AI panel context pill timing fix 0 can wait
 > - Cmd+K search
-> - Members panel
-> - Settings UI polish
 > - Slash commands

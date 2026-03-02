@@ -18,7 +18,6 @@ export default async function ChannelPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase
@@ -63,16 +62,25 @@ export default async function ChannelPage({
       {/* Channel header */}
       <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-zinc-500 font-medium">#</span>
-          <h1 className="text-sm font-semibold text-zinc-50">{channel.name}</h1>
-          <div className="w-px h-3.5 bg-zinc-700 mx-1" />
-          <span className="text-xs text-zinc-500">
-            {messages?.length ?? 0} messages
-          </span>
+          <span className="text-zinc-600 text-sm">#</span>
+          <h1 className="text-sm font-medium text-zinc-100">{channel.name}</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <ThreadsButton channelId={channel.id} />
-          <button className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1 rounded hover:bg-zinc-800 transition-colors">
+          <button className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
             Search
           </button>
           <MembersPanelButton />

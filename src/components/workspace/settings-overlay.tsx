@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { X, User, LayoutGrid, Plus, Copy, Check, Trash2 } from "lucide-react";
 
 const supabase = createClient();
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 type Section = "profile" | "workspace";
 
@@ -32,14 +31,12 @@ type Props = {
   displayName: string | null;
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function inviteUrl(token: string) {
   return `${window.location.origin}/invite/${token}`;
 }
 
 function formatExpiry(expiresAt: string | null) {
-  if (!expiresAt) return "Never expires";
+  if (!expiresAt) return "No expiry";
   return new Date(expiresAt).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -47,7 +44,7 @@ function formatExpiry(expiresAt: string | null) {
   });
 }
 
-// ── Row primitives ────────────────────────────────────────────────────────────
+// ── Primitives ────────────────────────────────────────────────────────────────
 
 function SettingRow({
   label,
@@ -59,11 +56,11 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-6 py-4 border-b border-zinc-800/60 last:border-0">
+    <div className="flex items-start justify-between gap-6 py-4 border-b border-zinc-800/50 last:border-0">
       <div className="flex flex-col gap-0.5 min-w-0">
         <span className="text-sm font-medium text-zinc-200">{label}</span>
         {description && (
-          <span className="text-xs text-zinc-500 leading-relaxed">
+          <span className="text-xs text-zinc-500 leading-relaxed max-w-xs">
             {description}
           </span>
         )}
@@ -88,9 +85,9 @@ function SettingInput({
 }) {
   return (
     <div className="flex flex-col gap-1 items-end">
-      <div className="flex items-center bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden focus-within:border-zinc-600 transition-colors">
+      <div className="flex items-center bg-black border border-zinc-800 rounded-lg overflow-hidden focus-within:border-zinc-600 hover:border-zinc-700 transition-colors">
         {prefix && (
-          <span className="px-2.5 text-xs text-zinc-600 border-r border-zinc-800 py-2 select-none whitespace-nowrap">
+          <span className="px-3 text-xs text-zinc-600 border-r border-zinc-800 py-2 select-none whitespace-nowrap">
             {prefix}
           </span>
         )}
@@ -98,7 +95,7 @@ function SettingInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="bg-transparent text-sm text-zinc-50 placeholder:text-zinc-600 outline-none px-3 py-2 w-52"
+          className="bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 outline-none px-3 py-2 w-48"
         />
       </div>
       {warning && <span className="text-[10px] text-amber-500">{warning}</span>}
@@ -119,10 +116,10 @@ function SaveButton({
     <button
       onClick={onClick}
       disabled={saving}
-      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+      className={`h-8 px-3 rounded-lg text-xs font-medium transition-all ${
         saved
-          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-          : "bg-violet-600 hover:bg-violet-500 text-white"
+          ? "bg-zinc-900 text-emerald-400 border border-zinc-800"
+          : "bg-white hover:bg-zinc-100 text-black"
       } disabled:opacity-50`}
     >
       {saving ? "Saving..." : saved ? "✓ Saved" : "Save"}
@@ -130,7 +127,7 @@ function SaveButton({
   );
 }
 
-// ── Profile section ───────────────────────────────────────────────────────────
+// ── Profile ───────────────────────────────────────────────────────────────────
 
 function ProfileSection({
   currentUserId,
@@ -143,6 +140,7 @@ function ProfileSection({
   displayName: string | null;
   onSignOut: () => void;
 }) {
+  const router = useRouter();
   const [displayName, setDisplayName] = useState(initialDisplayName ?? "");
   const [username, setUsername] = useState(initialUsername);
   const [savingName, setSavingName] = useState(false);
@@ -150,8 +148,6 @@ function ProfileSection({
   const [savingUsername, setSavingUsername] = useState(false);
   const [savedUsername, setSavedUsername] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const router = useRouter();
 
   async function saveDisplayName() {
     setSavingName(true);
@@ -165,7 +161,7 @@ function ProfileSection({
       return;
     }
     setSavedName(true);
-    router.refresh(); // ← add this
+    router.refresh();
     setTimeout(() => setSavedName(false), 2500);
   }
 
@@ -181,21 +177,22 @@ function ProfileSection({
       return;
     }
     setSavedUsername(true);
-    router.refresh(); // ← add this
+    router.refresh();
     setTimeout(() => setSavedUsername(false), 2500);
   }
 
   return (
     <div className="flex flex-col">
-      <SectionHeader
-        title="Profile"
-        description="Manage your personal account details."
-      />
+      <div className="pb-4 mb-1 border-b border-zinc-800">
+        <h3 className="text-base font-semibold text-zinc-50">Profile</h3>
+        <p className="text-xs text-zinc-500 mt-0.5">
+          Manage your personal account details.
+        </p>
+      </div>
 
-      {/* Avatar placeholder */}
-      <div className="py-4 border-b border-zinc-800/60">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xl font-semibold text-zinc-300">
+      <div className="py-4 border-b border-zinc-800/50">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-lg font-semibold text-zinc-300">
             {(displayName || username)?.[0]?.toUpperCase() ?? "?"}
           </div>
           <div>
@@ -242,15 +239,14 @@ function ProfileSection({
 
       {error && <p className="text-xs text-red-400 pt-2">{error}</p>}
 
-      {/* Sign out */}
-      <div className="pt-6 mt-2 border-t border-zinc-800/60">
+      <div className="pt-4 mt-2 border-t border-zinc-800/50">
         <SettingRow
           label="Sign out"
           description="Sign out of your account on this device."
         >
           <button
             onClick={onSignOut}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+            className="h-8 px-3 rounded-lg text-xs font-medium bg-zinc-900 border border-zinc-800 text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-colors"
           >
             Sign out
           </button>
@@ -260,7 +256,7 @@ function ProfileSection({
   );
 }
 
-// ── Workspace section ─────────────────────────────────────────────────────────
+// ── Workspace ─────────────────────────────────────────────────────────────────
 
 function WorkspaceSection({
   workspaceId,
@@ -275,6 +271,7 @@ function WorkspaceSection({
   currentUserId: string;
   userRole: string | null;
 }) {
+  const router = useRouter();
   const [name, setName] = useState(initialName);
   const [slug, setSlug] = useState(initialSlug);
   const [savingName, setSavingName] = useState(false);
@@ -300,8 +297,6 @@ function WorkspaceSection({
       .then(({ data }) => setInvites(data ?? []));
   }, [workspaceId, isAdmin]);
 
-  const router = useRouter();
-
   async function saveName() {
     setSavingName(true);
     const { error } = await supabase
@@ -314,7 +309,7 @@ function WorkspaceSection({
       return;
     }
     setSavedName(true);
-    router.refresh(); // ← add this
+    router.refresh();
     setTimeout(() => setSavedName(false), 2500);
   }
 
@@ -330,8 +325,7 @@ function WorkspaceSection({
       return;
     }
     setSavedSlug(true);
-    router.refresh(); // ← keep this, but remove window.location.href
-    window.location.href = `/${slug}`; // ← keep this only for slug change since URL changes
+    window.location.href = `/${slug}`;
   }
 
   async function generateInvite() {
@@ -342,14 +336,12 @@ function WorkspaceSection({
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
       .replace(/=+$/, "");
-
     const expiresAt =
       expiry === "7d"
         ? new Date(Date.now() + 7 * 86400000).toISOString()
         : expiry === "30d"
           ? new Date(Date.now() + 30 * 86400000).toISOString()
           : null;
-
     const { data, error } = await supabase
       .from("workspace_invites")
       .insert({
@@ -363,7 +355,6 @@ function WorkspaceSection({
       })
       .select()
       .single();
-
     if (!error && data) setInvites((prev) => [data, ...prev]);
     setGenerating(false);
   }
@@ -385,10 +376,12 @@ function WorkspaceSection({
 
   return (
     <div className="flex flex-col">
-      <SectionHeader
-        title="Workspace"
-        description="Manage your workspace settings and invite links."
-      />
+      <div className="pb-4 mb-1 border-b border-zinc-800">
+        <h3 className="text-base font-semibold text-zinc-50">Workspace</h3>
+        <p className="text-xs text-zinc-500 mt-0.5">
+          Manage your workspace settings and invite links.
+        </p>
+      </div>
 
       {isAdmin ? (
         <>
@@ -410,21 +403,15 @@ function WorkspaceSection({
 
           <SettingRow
             label="Workspace URL"
-            description="Changing this will update your workspace URL and redirect."
+            description="Changing this will update your URL and redirect."
           >
-            <div className="flex flex-col gap-1 items-end">
-              <SettingInput
-                value={slug}
-                onChange={setSlug}
-                placeholder="my-workspace"
-                prefix="hazard.app/"
-                warning={
-                  slug !== initialSlug
-                    ? "⚠ URL will change and redirect"
-                    : undefined
-                }
-              />
-            </div>
+            <SettingInput
+              value={slug}
+              onChange={setSlug}
+              placeholder="my-workspace"
+              prefix="hazard.app/"
+              warning={slug !== initialSlug ? "URL will change" : undefined}
+            />
             <SaveButton
               onClick={saveSlug}
               saving={savingSlug}
@@ -435,28 +422,23 @@ function WorkspaceSection({
           {error && <p className="text-xs text-red-400 py-2">{error}</p>}
 
           {/* Invite links */}
-          <div className="pt-2 flex flex-col gap-3">
+          <div className="pt-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-zinc-200">
                   Invite links
                 </p>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  Generate links to invite people to this workspace.
+                  Generate links to invite people.
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {/* Expiry selector */}
                 <div className="flex rounded-lg border border-zinc-800 overflow-hidden text-xs">
                   {(["never", "7d", "30d"] as const).map((opt) => (
                     <button
                       key={opt}
                       onClick={() => setExpiry(opt)}
-                      className={`px-2.5 py-1.5 transition-colors ${
-                        expiry === opt
-                          ? "bg-zinc-700 text-zinc-50"
-                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      }`}
+                      className={`px-2.5 py-1.5 transition-colors ${expiry === opt ? "bg-zinc-800 text-zinc-100" : "text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900"}`}
                     >
                       {opt === "never"
                         ? "No expiry"
@@ -469,30 +451,17 @@ function WorkspaceSection({
                 <button
                   onClick={generateInvite}
                   disabled={generating}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-xs font-medium text-white transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white hover:bg-zinc-100 text-xs font-medium text-black transition-colors disabled:opacity-50"
                 >
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
+                  <Plus size={11} strokeWidth={2.5} />
                   {generating ? "Generating..." : "Generate"}
                 </button>
               </div>
             </div>
 
-            {/* Invite list */}
             {invites.length === 0 ? (
-              <div className="text-xs text-zinc-600 text-center py-5 border border-dashed border-zinc-800 rounded-lg">
-                No active invite links — generate one above
+              <div className="text-xs text-zinc-600 text-center py-6 border border-dashed border-zinc-800 rounded-lg">
+                No active invite links
               </div>
             ) : (
               <div className="flex flex-col gap-1.5">
@@ -507,74 +476,25 @@ function WorkspaceSection({
                     <span className="text-[10px] text-zinc-600 shrink-0">
                       {inv.use_count} use{inv.use_count !== 1 ? "s" : ""}
                     </span>
-                    <span className="text-[10px] text-zinc-700 shrink-0">
-                      ·
-                    </span>
+                    <span className="text-[10px] text-zinc-700">·</span>
                     <span className="text-[10px] text-zinc-600 shrink-0">
                       {formatExpiry(inv.expires_at)}
                     </span>
-                    {/* Copy */}
                     <button
                       onClick={() => copyInvite(inv.token, inv.id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors shrink-0"
-                      title="Copy link"
+                      className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
                     >
                       {copiedId === inv.id ? (
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-emerald-400"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                        <Check size={12} className="text-emerald-400" />
                       ) : (
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <rect
-                            x="9"
-                            y="9"
-                            width="13"
-                            height="13"
-                            rx="2"
-                            ry="2"
-                          />
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                        </svg>
+                        <Copy size={12} />
                       )}
                     </button>
-                    {/* Revoke */}
                     <button
                       onClick={() => revokeInvite(inv.id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-600 hover:text-red-400 hover:bg-zinc-800 transition-colors shrink-0"
-                      title="Revoke"
+                      className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-700 hover:text-red-400 hover:bg-zinc-800 transition-colors"
                     >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 ))}
@@ -584,57 +504,10 @@ function WorkspaceSection({
         </>
       ) : (
         <div className="py-8 text-center text-xs text-zinc-600">
-          Only workspace owners and admins can manage settings.
+          Only owners and admins can manage settings.
         </div>
       )}
     </div>
-  );
-}
-
-// ── Section header ────────────────────────────────────────────────────────────
-
-function SectionHeader({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="pb-4 mb-2 border-b border-zinc-800">
-      <h3 className="text-base font-semibold text-zinc-50">{title}</h3>
-      <p className="text-xs text-zinc-500 mt-0.5">{description}</p>
-    </div>
-  );
-}
-
-// ── Nav item ──────────────────────────────────────────────────────────────────
-
-function NavItem({
-  active,
-  onClick,
-  icon,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors text-left ${
-        active
-          ? "bg-zinc-800 text-zinc-50"
-          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
-      }`}
-    >
-      <span className={active ? "text-violet-400" : "text-zinc-600"}>
-        {icon}
-      </span>
-      {label}
-    </button>
   );
 }
 
@@ -651,13 +524,9 @@ export default function SettingsOverlay({
   username,
   displayName,
 }: Props) {
-  // After — no useState needed for initial sync, use key on the component
   const [section, setSection] = useState<Section>(initialSection);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  // Sync section when initialSection changes (e.g. clicking Settings vs user row)
-
-  // Load user role once
   useEffect(() => {
     if (!open) return;
     supabase
@@ -674,7 +543,6 @@ export default function SettingsOverlay({
     window.location.href = "/login";
   }
 
-  // Close on Escape
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onCloseAction();
@@ -683,56 +551,18 @@ export default function SettingsOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onCloseAction]);
 
-  const navIcons = {
-    profile: (
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-      </svg>
-    ),
-    workspace: (
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <rect x="3" y="3" width="7" height="7" />
-        <rect x="14" y="3" width="7" height="7" />
-        <rect x="14" y="14" width="7" height="7" />
-        <rect x="3" y="14" width="7" height="7" />
-      </svg>
-    ),
-  };
-
   return (
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             onClick={onCloseAction}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
           />
-
-          {/* Panel */}
           <motion.div
             initial={{ opacity: 0, scale: 0.97, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -745,55 +575,54 @@ export default function SettingsOverlay({
               className="pointer-events-auto w-full max-w-2xl h-130 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex overflow-hidden"
             >
               {/* Left nav */}
-              <div className="w-48 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col p-3 gap-1">
-                <p className="text-[10px] font-medium text-zinc-600 uppercase tracking-widest px-3 py-2">
+              <div className="w-44 shrink-0 bg-black border-r border-zinc-800 flex flex-col p-3 gap-0.5">
+                <p className="text-[10px] font-medium text-zinc-700 uppercase tracking-widest px-3 py-2">
                   Settings
                 </p>
-                <NavItem
-                  active={section === "profile"}
-                  onClick={() => setSection("profile")}
-                  icon={navIcons.profile}
-                  label="Profile"
-                />
-                <NavItem
-                  active={section === "workspace"}
-                  onClick={() => setSection("workspace")}
-                  icon={navIcons.workspace}
-                  label="Workspace"
-                />
+                {(["profile", "workspace"] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSection(s)}
+                    className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                      section === s
+                        ? "bg-zinc-900 text-zinc-100"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50"
+                    }`}
+                  >
+                    {s === "profile" ? (
+                      <User
+                        size={13}
+                        strokeWidth={1.5}
+                        className="text-zinc-500"
+                      />
+                    ) : (
+                      <LayoutGrid
+                        size={13}
+                        strokeWidth={1.5}
+                        className="text-zinc-500"
+                      />
+                    )}
+                    {s === "profile" ? "Profile" : "Workspace"}
+                  </button>
+                ))}
               </div>
 
               {/* Content */}
               <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Top bar */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 shrink-0">
-                  <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                <div className="flex items-center justify-between px-6 py-3.5 border-b border-zinc-800 shrink-0">
+                  <div className="flex items-center gap-2 text-xs text-zinc-600">
                     <span>Settings</span>
                     <span>/</span>
                     <span className="text-zinc-300 capitalize">{section}</span>
                   </div>
                   <button
                     onClick={onCloseAction}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
-                    title="Close (Esc)"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
+                    <X size={14} />
                   </button>
                 </div>
 
-                {/* Scrollable content */}
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                   <AnimatePresence mode="wait">
                     {section === "profile" ? (
@@ -802,7 +631,7 @@ export default function SettingsOverlay({
                         initial={{ opacity: 0, x: -6 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 6 }}
-                        transition={{ duration: 0.15 }}
+                        transition={{ duration: 0.12 }}
                       >
                         <ProfileSection
                           currentUserId={currentUserId}
@@ -817,7 +646,7 @@ export default function SettingsOverlay({
                         initial={{ opacity: 0, x: -6 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 6 }}
-                        transition={{ duration: 0.15 }}
+                        transition={{ duration: 0.12 }}
                       >
                         <WorkspaceSection
                           workspaceId={workspaceId}

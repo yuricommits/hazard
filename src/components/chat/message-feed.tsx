@@ -9,6 +9,7 @@ import { useReplyStore } from "@/stores/reply-store";
 import { getOrCreateThread } from "@/lib/supabase/threads";
 import ReactionButton from "@/components/chat/reaction-button";
 import { usePresenceStore } from "@/stores/presence-store";
+import { CornerUpLeft, MessageSquare } from "lucide-react";
 
 type Profile = {
   id: string;
@@ -50,7 +51,6 @@ function isGrouped(messages: Message[], index: number): boolean {
   return diff < 5 * 60 * 1000;
 }
 
-// Truncate message content for reply preview
 function truncate(text: string, max = 80) {
   return text.length > max ? text.slice(0, max) + "…" : text;
 }
@@ -74,7 +74,6 @@ export default function MessageFeed({
   const { setReplyTo } = useReplyStore();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
 
-  // Reply — pre-fills composer with @mention, does NOT open thread panel
   function handleReply(message: Message) {
     const username =
       message.profiles?.display_name ?? message.profiles?.username ?? "Unknown";
@@ -85,19 +84,14 @@ export default function MessageFeed({
     });
   }
 
-  // Create thread — only available if no thread exists yet
   function handleCreateThread(messageId: string) {
     openThread(null, messageId);
-    // Thread is created lazily when the first reply is sent
   }
 
-  // View thread — opens existing thread panel
   async function handleViewThread(messageId: string) {
     openThread(null, messageId);
     const threadId = await getOrCreateThread(messageId, currentUserId);
-    if (threadId) {
-      useThreadStore.getState().setThreadId(threadId);
-    }
+    if (threadId) useThreadStore.getState().setThreadId(threadId);
   }
 
   useEffect(() => {
@@ -117,23 +111,19 @@ export default function MessageFeed({
         .from("threads")
         .select("id, message_id")
         .in("message_id", messageIds);
-
       if (!threads?.length) return;
 
       const threadIds = threads.map((t) => t.id);
-
       const { data: replies } = await supabase
         .from("messages")
         .select("thread_id")
         .in("thread_id", threadIds);
-
       if (!replies?.length) return;
 
       const countByThread: Record<string, number> = {};
       replies.forEach((r) => {
-        if (r.thread_id) {
+        if (r.thread_id)
           countByThread[r.thread_id] = (countByThread[r.thread_id] ?? 0) + 1;
-        }
       });
 
       const countByMessage: Record<string, number> = {};
@@ -142,13 +132,9 @@ export default function MessageFeed({
       });
 
       setMessages((prev) =>
-        prev.map((m) => ({
-          ...m,
-          replyCount: countByMessage[m.id] ?? 0,
-        })),
+        prev.map((m) => ({ ...m, replyCount: countByMessage[m.id] ?? 0 })),
       );
     }
-
     fetchReplyCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -166,25 +152,21 @@ export default function MessageFeed({
         },
         async (payload) => {
           if (payload.new.thread_id) return;
-
           const { data: profile } = await supabase
             .from("profiles")
             .select("id, username, display_name, avatar_url")
             .eq("id", payload.new.user_id)
             .single();
-
           const newMessage: Message = {
             ...(payload.new as Message),
             profiles: profile,
             reactions: [],
             replyCount: 0,
           };
-
           setMessages((prev) => [...prev, newMessage]);
         },
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -204,15 +186,12 @@ export default function MessageFeed({
         async (payload) => {
           const threadId = payload.new.thread_id;
           if (!threadId) return;
-
           const { data: thread } = await supabase
             .from("threads")
             .select("message_id")
             .eq("id", threadId)
             .single();
-
           if (!thread) return;
-
           setMessages((prev) =>
             prev.map((m) =>
               m.id === thread.message_id
@@ -223,7 +202,6 @@ export default function MessageFeed({
         },
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -241,9 +219,7 @@ export default function MessageFeed({
             .from("reactions")
             .select("id, emoji, user_id")
             .eq("message_id", messageId);
-
           if (!data) return;
-
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === messageId ? { ...msg, reactions: data } : msg,
@@ -256,14 +232,11 @@ export default function MessageFeed({
         { event: "DELETE", schema: "public", table: "reactions" },
         (payload) => {
           const deletedId = payload.old.id;
-
           setMessages((prev) => {
             const messageId = prev.find((msg) =>
               msg.reactions.some((r) => r.id === deletedId),
             )?.id;
-
             if (!messageId) return prev;
-
             return prev.map((msg) =>
               msg.id === messageId
                 ? {
@@ -276,16 +249,13 @@ export default function MessageFeed({
         },
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
   }, [channelId]);
 
   const aiResponseMap = messages.reduce<Record<string, Message>>((acc, m) => {
-    if (m.is_ai && m.parent_message_id) {
-      acc[m.parent_message_id] = m;
-    }
+    if (m.is_ai && m.parent_message_id) acc[m.parent_message_id] = m;
     return acc;
   }, {});
 
@@ -294,20 +264,17 @@ export default function MessageFeed({
   );
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-0">
+    <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-0">
       {messages.length === 0 && (
         <div className="flex items-center justify-center h-full">
-          <p className="text-sm text-zinc-500">
-            This is the beginning of #{channelName}
-          </p>
+          <p className="text-sm text-zinc-600">Beginning of #{channelName}</p>
         </div>
       )}
+
       {topLevelMessages.map((message, index) => {
         const grouped = isGrouped(topLevelMessages, index);
-
-        if (message.is_ai) {
+        if (message.is_ai)
           return <AiMessage key={message.id} content={message.content} />;
-        }
 
         const aiResponse = aiResponseMap[message.id];
         const hasThread = message.replyCount > 0;
@@ -315,65 +282,35 @@ export default function MessageFeed({
         return (
           <div key={message.id} className="flex flex-col">
             <div
-              className={`flex items-start gap-3 px-2 rounded-lg hover:bg-zinc-900/50 group relative ${grouped ? "py-0.5" : "py-1 mt-1"}`}
+              className={`flex items-start gap-3 px-2 rounded-lg hover:bg-zinc-900/40 group relative ${grouped ? "py-0.5" : "py-1.5 mt-0.5"}`}
             >
               {/* Hover actions */}
-              <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md px-1 py-0.5 shadow-lg">
-                {/* Reply — always visible, pre-fills composer */}
+              <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-0.5 bg-zinc-900 border border-zinc-800 rounded-lg px-1 py-1 shadow-xl z-10">
                 <button
                   onClick={() => handleReply(message)}
-                  className="text-[11px] text-zinc-400 hover:text-zinc-50 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors flex items-center gap-1"
-                  title="Reply in channel"
+                  title="Reply"
+                  className="flex items-center gap-1.5 h-6 px-2 rounded-md text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
                 >
-                  <svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="9 17 4 12 9 7" />
-                    <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-                  </svg>
+                  <CornerUpLeft size={11} strokeWidth={2} />
                   Reply
                 </button>
-
-                {/* Divider */}
-                <div className="w-px h-3 bg-zinc-700" />
-
-                {/* Create thread — only if no thread exists yet */}
+                <div className="w-px h-3 bg-zinc-800 mx-0.5" />
                 {!hasThread && (
                   <button
                     onClick={() => handleCreateThread(message.id)}
-                    className="text-[11px] text-zinc-400 hover:text-zinc-50 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors flex items-center gap-1"
                     title="Create thread"
+                    className="flex items-center gap-1.5 h-6 px-2 rounded-md text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
                   >
-                    <svg
-                      width="11"
-                      height="11"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                      <line x1="12" y1="8" x2="12" y2="14" />
-                      <line x1="9" y1="11" x2="15" y2="11" />
-                    </svg>
+                    <MessageSquare size={11} strokeWidth={2} />
                     Thread
                   </button>
                 )}
               </div>
 
-              {/* Avatar or grouped timestamp */}
+              {/* Avatar */}
               {grouped ? (
                 <div className="w-8 shrink-0 flex items-center justify-center">
-                  <span className="text-[9px] text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[10px] text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity">
                     {new Date(message.created_at).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -386,15 +323,15 @@ export default function MessageFeed({
                     {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
                   </div>
                   {onlineUserIds.has(message.user_id) && (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-zinc-950" />
                   )}
                 </div>
               )}
 
               <div className="flex flex-col min-w-0 flex-1">
                 {!grouped && (
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-medium text-zinc-50">
+                  <div className="flex items-baseline gap-2 mb-0.5">
+                    <span className="text-sm font-medium text-zinc-100">
                       {message.profiles?.display_name ??
                         message.profiles?.username ??
                         "Unknown"}
@@ -416,24 +353,12 @@ export default function MessageFeed({
                   currentUserId={currentUserId}
                 />
 
-                {/* View thread — only if thread exists */}
                 {hasThread && (
                   <button
                     onClick={() => handleViewThread(message.id)}
-                    className="mt-1 flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-300 transition-colors w-fit group/thread"
+                    className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors w-fit group/thread"
                   >
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
+                    <MessageSquare size={11} strokeWidth={1.5} />
                     <span className="group-hover/thread:underline">
                       {message.replyCount}{" "}
                       {message.replyCount === 1 ? "reply" : "replies"}
@@ -444,7 +369,7 @@ export default function MessageFeed({
             </div>
 
             {aiResponse && (
-              <div className="ml-11 pl-4 border-l-2 border-zinc-800 mt-0.5 mb-1">
+              <div className="ml-11 pl-4 border-l border-zinc-800 mt-0.5 mb-1">
                 <AiMessage content={aiResponse.content} />
               </div>
             )}
