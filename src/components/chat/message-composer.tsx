@@ -30,16 +30,7 @@ export default function MessageComposer({
   // When a reply is set, pre-fill the composer with @mention and focus
   useEffect(() => {
     if (replyTo) {
-      const mention = `@${replyTo.username} `;
-      setMessage(mention);
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(mention.length, mention.length);
-          textareaRef.current.style.height = "auto";
-          textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-        }
-      }, 0);
+      setTimeout(() => textareaRef.current?.focus(), 0);
     }
   }, [replyTo]);
 
@@ -150,7 +141,9 @@ export default function MessageComposer({
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     setSending(true);
-    const text = message.trim();
+    const text = replyTo
+      ? `@${replyTo.username} ${message.trim()}`
+      : message.trim();
     setMessage("");
     clearReplyTo();
 
