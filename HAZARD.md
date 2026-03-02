@@ -131,25 +131,26 @@ hazard/
 │   ├── components/
 │   │   ├── ui/                        # shadcn/ui primitives
 │   │   ├── chat/
-│   │   │   ├── message-feed.tsx       # real-time feed, reactions, reply count, AI grouping
-│   │   │   ├── message-composer.tsx   # send messages + @hazard detection, styled placeholder
+│   │   │   ├── message-feed.tsx       # real-time feed, hover Reply + Create Thread actions
+│   │   │   ├── message-composer.tsx   # send messages, reply quote bar, @mention on send
 │   │   │   ├── message-content.tsx    # markdown + syntax highlighting
 │   │   │   ├── reaction-button.tsx    # emoji reactions with optimistic updates
 │   │   │   ├── thread-panel.tsx       # thread replies panel, drag-to-resize
+│   │   │   ├── threads-button.tsx     # top bar dropdown listing active threads
 │   │   │   ├── typing-indicator.tsx   # typing + hazard thinking indicator
 │   │   │   ├── ai-message.tsx         # distinct AI message component
 │   │   │   ├── ai-panel.tsx           # dedicated AI side panel, drag-to-resize
 │   │   │   └── ai-channel-sync.tsx    # syncs current channel to AI panel store
 │   │   ├── sidebar/
-│   │   │   ├── app-sidebar.tsx        # collapsible sidebar + settings gear button
+│   │   │   ├── app-sidebar.tsx        # collapsible sidebar, settings + profile triggers
 │   │   │   ├── create-channel-button.tsx
 │   │   │   ├── sign-out-button.tsx
 │   │   │   ├── ai-panel-button.tsx
 │   │   │   ├── channel-list.tsx
 │   │   │   └── workspace-presence.tsx
 │   │   └── workspace/
-│   │       ├── workspace-picker.tsx         # Discord-style picker, create + join modals
-│   │       └── workspace-settings-modal.tsx # invite link generation, copy, revoke
+│   │       ├── workspace-picker.tsx   # Discord-style picker, create + join modals
+│   │       └── settings-overlay.tsx   # unified Profile + Workspace settings, left nav style
 │   ├── lib/
 │   │   ├── supabase/
 │   │   │   ├── client.ts
@@ -166,7 +167,8 @@ hazard/
 │   │   ├── thread-store.ts
 │   │   ├── ai-panel-store.ts
 │   │   ├── sidebar-store.ts
-│   │   └── presence-store.ts
+│   │   ├── presence-store.ts
+│   │   └── reply-store.ts             # tracks active reply target for composer quote bar
 │   ├── types/
 │   │   └── index.ts
 │   └── proxy.ts
@@ -207,11 +209,19 @@ hazard/
 - `workspace_invites` — invite links with token, expiry, max_uses, use_count, is_active
 - `channels` — belongs to workspace (public/private)
 - `channel_members` — users ↔ channels
-- `messages` — belongs to channel. Fields: `is_ai` (AI flag), `parent_message_id` (links AI response to triggering message), `thread_id`
+- `messages` — belongs to channel. Fields: `is_ai`, `parent_message_id`, `thread_id`
 - `threads` — belongs to a parent message
 - `reactions` — Realtime enabled. REPLICA IDENTITY FULL.
 - `files` — uploaded files/images
 - `ai_conversations` — AI panel history per user per workspace
+
+---
+
+## REPLY MODEL (DECIDED ✓)
+
+- **Channel replies** — flat, Discord-style. Click Reply → quote bar appears in composer → sends `@mention message` in channel. No nested structure, keeps feed readable.
+- **Threads** — optional, for deep conversation. Hover a message → "Thread" button appears only if no thread exists yet. Active threads listed in top bar Threads dropdown.
+- **Decided against** storing `reply_to_message_id` — `@mention` carries enough context for a dev tool. Quote previews add visual noise in busy channels.
 
 ---
 
@@ -243,13 +253,17 @@ hazard/
 - [x] MessageComposer — styled @hazard placeholder with violet tint
 - [x] Workspace picker — Discord-style, multi-workspace support
 - [x] Workspace invites — token-based, expiry, revoke, use_count
-- [x] Workspace settings modal — generate/copy/revoke invite links from sidebar gear button
+- [x] Settings overlay — unified Profile + Workspace, left nav, Vercel-style
+- [x] Discord-style replies — @mention in channel, quote bar in composer, Esc to cancel
+- [x] Optional threads — hover "Thread" button, only on messages without existing thread
+- [x] Threads dropdown in top bar — lists active threads with reply counts
 
 ### Next Up
 - [ ] Test full AI flow end to end with Anthropic credits
 - [ ] AI panel context pill timing fix (opens before channel syncs)
 - [ ] Cmd+K search — wire up Search button
 - [ ] Members panel — wire up Members button
+- [ ] Settings UI polish
 - [ ] Slash commands (/deploy, /run, /pr, /ai)
 - [ ] Keyboard-first navigation
 - [ ] Git bot integration
@@ -278,6 +292,7 @@ hazard/
 - Custom scrollbar styling
 - Rate limiting for AI (Upstash Redis)
 - Workspace switcher in sidebar (multi-workspace nav)
+- Settings UI polish (parked)
 
 ---
 
@@ -304,17 +319,19 @@ hazard/
 | 09 | Reactions real-time sync. Enabled Realtime on reactions. REPLICA IDENTITY FULL. |
 | 10 | Thread reply count (real-time). Typing indicators. Hazard AI: API route, @hazard detection, ai-message, ai-panel, ai-panel-store, ai-panel-button, ai-channel-sync |
 | 11 | AI response visually grouped under triggering message. Added parent_message_id to messages. Composer captures message ID and passes as parent_message_id on AI response. Feed builds aiResponseMap and renders AI inline below parent. Reverted to Anthropic. |
-| 12 | User presence. presence-store.ts (Zustand), WorkspacePresence component (workspace-level Supabase Presence channel). Online dot on sidebar user row + message avatars. Panels (thread + AI) flagged for Framer Motion + shadcn Sheet polish later. |
+| 12 | User presence. presence-store.ts (Zustand), WorkspacePresence component (workspace-level Supabase Presence channel). Online dot on sidebar user row + message avatars. |
 | 12 | ... + Fixed real-time messages: removed double filter on Realtime subscription, added REPLICA IDENTITY FULL to messages table. |
-| 13 | UI polish: message grouping, reaction + collapse animation, collapsible sidebar (Framer Motion spring), AI + Thread panel slide animations, removed global scrollbars, hydration warning fix on CreateChannelButton, thread panel always-mounted for faster open, handleReply optimized to remove blocking auth call. |
+| 13 | UI polish: message grouping, reaction + collapse animation, collapsible sidebar (Framer Motion spring), AI + Thread panel slide animations, removed global scrollbars, hydration warning fix on CreateChannelButton, thread panel always-mounted for faster open, handleReply optimized. |
 | 13 (cont.) | Channel header polish — message count, divider, Search and Members placeholder buttons. |
-| 14 | UI polish: AI panel empty state + suggestion chips, thread panel header icon + reply count, message composer @hazard violet placeholder. Drag-to-resize for thread + AI panels (240–520px, violet handle, ref-based listeners to avoid circular useCallback). Workspace invites: workspace_invites table + migration + RLS, POST /api/workspace/join, workspace-picker (Discord-style multi-workspace), workspace-settings-modal (generate/copy/revoke invite links), settings gear button in sidebar. |
+| 14 | UI polish: AI panel empty state + suggestion chips, thread panel header icon + reply count, composer @hazard violet placeholder. Drag-to-resize panels. Workspace invites: workspace_invites table + migration + RLS, POST /api/workspace/join, workspace-picker, workspace-settings-modal, settings gear in sidebar. |
+| 15 | Unified settings overlay (Profile + Workspace, left nav, Vercel-style). User row → Profile, gear → Workspace. display_name passed from layout. Discord-style replies: reply-store.ts, composer quote bar, @mention prepended on send, Esc to cancel. Optional threads: hover "Thread" button only on threadless messages, "View thread" replaces Reply count. Threads dropdown in top bar (threads-button.tsx). Decided against reply_to_message_id — @mention sufficient for dev tool. |
 
 ---
 
 > Next session:
 > - Test full AI flow end to end with Anthropic credits
 > - AI panel context pill timing fix
-> - Cmd+K search — wire up Search button
-> - Members panel — wire up Members button
+> - Cmd+K search
+> - Members panel
+> - Settings UI polish
 > - Slash commands
