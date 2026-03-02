@@ -257,16 +257,17 @@ hazard/
 - [x] Discord-style replies — @mention in channel, quote bar in composer, Esc to cancel
 - [x] Optional threads — hover "Thread" button, only on messages without existing thread
 - [x] Threads dropdown in top bar — lists active threads with reply counts
+- [x] Threads lazy creation — no DB write on click, only on first message sent
+- [x] Threads dropdown realtime updates
+- [x] Members panel — workspace members, online presence, role badges
+- [x] Settings saves functional — display name, username, workspace name, slug
 
 ### Next Up
 - [ ] Test full AI flow end to end with Anthropic credits
-- [ ] AI panel context pill timing fix (opens before channel syncs)
-- [ ] Cmd+K search — wire up Search button
-- [ ] Members panel — wire up Members button
-- [ ] Settings UI polish
+- [ ] AI panel context pill timing fix
+- [ ] Cmd+K search
 - [ ] Slash commands (/deploy, /run, /pr, /ai)
 - [ ] Keyboard-first navigation
-- [ ] Git bot integration
 - [ ] File uploads
 
 ---
@@ -325,7 +326,7 @@ hazard/
 | 13 (cont.) | Channel header polish — message count, divider, Search and Members placeholder buttons. |
 | 14 | UI polish: AI panel empty state + suggestion chips, thread panel header icon + reply count, composer @hazard violet placeholder. Drag-to-resize panels. Workspace invites: workspace_invites table + migration + RLS, POST /api/workspace/join, workspace-picker, workspace-settings-modal, settings gear in sidebar. |
 | 15 | Unified settings overlay (Profile + Workspace, left nav, Vercel-style). User row → Profile, gear → Workspace. display_name passed from layout. Discord-style replies: reply-store.ts, composer quote bar, @mention prepended on send, Esc to cancel. Optional threads: hover "Thread" button only on threadless messages, "View thread" replaces Reply count. Threads dropdown in top bar (threads-button.tsx). Decided against reply_to_message_id — @mention sufficient for dev tool. |
-
+| 16 | Threads lazy creation — thread row only created on first message sent, not on click. Thread panel gated on openMessageId. ThreadsButton realtime updates + correct threadId on open. Members panel: members-panel-store, members-panel.tsx, members-panel-button.tsx, workspace-level members with online presence and role badges. Settings fixes: workspace UPDATE RLS policy added, router.refresh() after saves, removed cascading setState useEffect. |
 ---
 
 > Next session:

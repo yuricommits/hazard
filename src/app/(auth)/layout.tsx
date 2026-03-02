@@ -4,8 +4,11 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6">
       {children}
+      <p className="absolute bottom-6 text-[11px] text-zinc-700">
+        © {new Date().getFullYear()} Hazard
+      </p>
     </div>
   );
 }

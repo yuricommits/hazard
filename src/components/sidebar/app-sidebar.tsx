@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSidebarStore } from "@/stores/sidebar-store";
 import CreateChannelButton from "@/components/sidebar/create-channel-button";
-import SignOutButton from "@/components/sidebar/sign-out-button";
 import AiPanelButton from "@/components/sidebar/ai-panel-button";
 import WorkspacePresence from "@/components/sidebar/workspace-presence";
 import SettingsOverlay from "@/components/workspace/settings-overlay";
@@ -119,12 +118,19 @@ export default function AppSidebar({
                 key={channel.id}
                 href={`/${workspaceSlug}/${channel.name}`}
                 title={collapsed ? `#${channel.name}` : undefined}
-                className={`flex items-center gap-2 mx-1 px-2 py-1.5 rounded-md text-sm transition-colors ${
+                className={`relative flex items-center gap-2 mx-1 px-2 py-1.5 rounded-md text-sm transition-colors ${
                   isActive
                     ? "bg-zinc-800 text-zinc-50"
                     : "text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800/50"
                 }`}
               >
+                {/* Active indicator */}
+                {isActive && (
+                  <motion.span
+                    layoutId="active-channel"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-violet-500 rounded-full"
+                  />
+                )}
                 <span
                   className={`shrink-0 ${isActive ? "text-violet-400" : "text-zinc-600"}`}
                 >
@@ -168,7 +174,7 @@ export default function AppSidebar({
         <div className="p-2 border-t border-zinc-800 shrink-0 flex flex-col gap-1">
           <AiPanelButton collapsed={collapsed} />
 
-          {/* Settings button — opens Workspace section */}
+          {/* Settings */}
           <button
             onClick={() => openSettings("workspace")}
             title="Workspace settings"
@@ -205,52 +211,44 @@ export default function AppSidebar({
             </AnimatePresence>
           </button>
 
-          {/* User row — clickable, opens Profile section */}
+          {/* User row */}
           <button
             onClick={() => openSettings("profile")}
             title="Profile settings"
-            className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-800 transition-colors w-full ${
+            className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-800 transition-colors w-full group ${
               collapsed ? "justify-center" : ""
             }`}
           >
             <div className="relative shrink-0">
-              <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-[11px] font-medium text-zinc-300">
+              <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-[11px] font-medium text-zinc-300 group-hover:ring-1 group-hover:ring-violet-500/40 transition-all">
                 {(displayName || username)?.[0]?.toUpperCase() ?? "?"}
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-zinc-950" />
             </div>
             <AnimatePresence>
               {!collapsed && (
-                <motion.span
+                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.1 }}
-                  className="text-xs text-zinc-400 truncate flex-1 text-left"
+                  className="flex-1 flex flex-col items-start min-w-0"
                 >
-                  {displayName || username}
-                </motion.span>
+                  <span className="text-xs text-zinc-300 truncate w-full text-left font-medium">
+                    {displayName || username}
+                  </span>
+                  {displayName && (
+                    <span className="text-[10px] text-zinc-600 truncate w-full text-left">
+                      @{username}
+                    </span>
+                  )}
+                </motion.div>
               )}
             </AnimatePresence>
           </button>
-
-          {/* Sign out — only shown when expanded */}
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
-              >
-                <SignOutButton />
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </motion.aside>
 
-      {/* Settings overlay — outside aside so it covers full screen */}
       <SettingsOverlay
         open={settingsOpen}
         initialSection={settingsSection}

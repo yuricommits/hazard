@@ -5,16 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginInput } from "@/lib/validations/auth";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -23,10 +14,7 @@ export default function LoginPage() {
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
   async function onSubmit(data: LoginInput) {
@@ -34,89 +22,139 @@ export default function LoginPage() {
       email: data.email,
       password: data.password,
     });
-
     if (error) {
       form.setError("root", { message: error.message });
       return;
     }
-
     router.push("/");
     router.refresh();
   }
 
+  const isSubmitting = form.formState.isSubmitting;
+  const errors = form.formState.errors;
+
   return (
-    <div className="w-full max-w-sm px-4">
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-semibold text-zinc-50 tracking-tight">
-          Welcome back
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+      className="w-full max-w-sm flex flex-col gap-8"
+    >
+      {/* Title */}
+      <div className="text-center">
+        <h1 className="text-2xl font-semibold text-white tracking-tight">
+          Log in to Hazard
         </h1>
-        <p className="text-sm text-zinc-400 mt-1">
-          Sign in to your Hazard account
-        </p>
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-zinc-300">Email</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="you@example.com"
-                    className="bg-zinc-900 border-zinc-800 text-zinc-50 placeholder:text-zinc-600"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+      {/* Form */}
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-3"
+      >
+        {/* Email */}
+        <input
+          {...form.register("email")}
+          type="email"
+          placeholder="Email Address"
+          className={`w-full bg-zinc-950 border rounded-md px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none transition-all duration-150 ${
+            errors.email
+              ? "border-red-500/50"
+              : "border-zinc-800 hover:border-zinc-700 focus:border-zinc-600"
+          }`}
+        />
+        {errors.email && (
+          <p className="text-xs text-red-400 -mt-1">{errors.email.message}</p>
+        )}
 
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-zinc-300">Password</FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    className="bg-zinc-900 border-zinc-800 text-zinc-50 placeholder:text-zinc-600"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {/* Password */}
+        <input
+          {...form.register("password")}
+          type="password"
+          placeholder="Password"
+          className={`w-full bg-zinc-950 border rounded-md px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none transition-all duration-150 ${
+            errors.password
+              ? "border-red-500/50"
+              : "border-zinc-800 hover:border-zinc-700 focus:border-zinc-600"
+          }`}
+        />
+        {errors.password && (
+          <p className="text-xs text-red-400 -mt-1">
+            {errors.password.message}
+          </p>
+        )}
 
-          {form.formState.errors.root && (
-            <p className="text-sm text-red-400">
-              {form.formState.errors.root.message}
-            </p>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full bg-violet-600 hover:bg-violet-500 text-white"
-            disabled={form.formState.isSubmitting}
+        {/* Error */}
+        {errors.root && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 px-3 py-2.5 bg-red-950/40 border border-red-500/20 rounded-md"
           >
-            {form.formState.isSubmitting ? "Signing in..." : "Sign in"}
-          </Button>
-        </form>
-      </Form>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-red-400 shrink-0"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <p className="text-xs text-red-400">{errors.root.message}</p>
+          </motion.div>
+        )}
 
-      <p className="text-center text-sm text-zinc-500 mt-6">
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md bg-white hover:bg-zinc-100 active:bg-zinc-200 text-sm font-medium text-black transition-colors disabled:opacity-50 mt-1"
+        >
+          {isSubmitting ? (
+            <>
+              <svg
+                className="animate-spin shrink-0"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Signing in...
+            </>
+          ) : (
+            "Continue with Email"
+          )}
+        </button>
+      </form>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-zinc-800" />
+        <span className="text-xs text-zinc-600">or</span>
+        <div className="flex-1 h-px bg-zinc-800" />
+      </div>
+
+      {/* Sign up link */}
+      <p className="text-center text-sm text-zinc-500">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="text-violet-400 hover:text-violet-300">
-          Sign up
+        <Link
+          href="/signup"
+          className="text-white hover:text-zinc-300 transition-colors"
+        >
+          Sign Up
         </Link>
       </p>
-    </div>
+    </motion.div>
   );
 }
 
