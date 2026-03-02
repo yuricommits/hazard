@@ -5,6 +5,7 @@ import MessageFeed from "@/components/chat/message-feed";
 import TypingIndicator from "@/components/chat/typing-indicator";
 import AiChannelSync from "@/components/chat/ai-channel-sync";
 import ThreadsButton from "@/components/chat/threads-button";
+import MembersPanelButton from "@/components/chat/members-panel-button";
 
 export default async function ChannelPage({
   params,
@@ -74,9 +75,7 @@ export default async function ChannelPage({
           <button className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1 rounded hover:bg-zinc-800 transition-colors">
             Search
           </button>
-          <button className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1 rounded hover:bg-zinc-800 transition-colors">
-            Members
-          </button>
+          <MembersPanelButton />
         </div>
       </div>
 

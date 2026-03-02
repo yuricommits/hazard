@@ -86,12 +86,9 @@ export default function MessageFeed({
   }
 
   // Create thread — only available if no thread exists yet
-  async function handleCreateThread(messageId: string) {
+  function handleCreateThread(messageId: string) {
     openThread(null, messageId);
-    const threadId = await getOrCreateThread(messageId, currentUserId);
-    if (threadId) {
-      useThreadStore.getState().setThreadId(threadId);
-    }
+    // Thread is created lazily when the first reply is sent
   }
 
   // View thread — opens existing thread panel

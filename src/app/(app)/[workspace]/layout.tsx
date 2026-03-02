@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import ThreadPanel from "@/components/chat/thread-panel";
 import AiPanel from "@/components/chat/ai-panel";
 import AppSidebar from "@/components/sidebar/app-sidebar";
+import MembersPanel from "@/components/chat/members-panel";
 
 export default async function WorkspaceLayout({
   children,
@@ -56,6 +57,7 @@ export default async function WorkspaceLayout({
         <div className="flex-1 flex flex-col overflow-hidden">{children}</div>
         <ThreadPanel />
         <AiPanel workspaceId={workspace.id} currentUserId={user.id} />
+        <MembersPanel workspaceId={workspace.id} />
       </main>
     </div>
   );

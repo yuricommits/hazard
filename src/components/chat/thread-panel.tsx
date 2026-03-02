@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useThreadStore } from "@/stores/thread-store";
 import { createClient } from "@/lib/supabase/client";
 import MessageContent from "@/components/chat/message-content";
+import { getOrCreateThread } from "@/lib/supabase/threads";
 
 const supabase = createClient();
 
@@ -124,7 +125,7 @@ export default function ThreadPanel() {
   }
 
   async function sendReply() {
-    if (!reply.trim() || sending || !openThreadId) return;
+    if (!reply.trim() || sending || !openMessageId) return;
     setSending(true);
 
     const {
@@ -140,11 +141,19 @@ export default function ThreadPanel() {
 
     if (!parentMessage) return;
 
+    // Create thread on first reply if it doesn't exist yet
+    let threadId = openThreadId;
+    if (!threadId) {
+      threadId = await getOrCreateThread(openMessageId, user.id);
+      if (!threadId) return;
+      useThreadStore.getState().setThreadId(threadId);
+    }
+
     await supabase.from("messages").insert({
       channel_id: parentMessage.channel_id,
       user_id: user.id,
       content: reply.trim(),
-      thread_id: openThreadId,
+      thread_id: threadId,
     });
 
     setReply("");
@@ -161,8 +170,8 @@ export default function ThreadPanel() {
   return (
     <motion.aside
       animate={{
-        width: openThreadId ? panelWidth : 0,
-        opacity: openThreadId ? 1 : 0,
+        width: openMessageId ? panelWidth : 0,
+        opacity: openMessageId ? 1 : 0,
       }}
       transition={
         isDragging
@@ -171,7 +180,7 @@ export default function ThreadPanel() {
       }
       className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden relative"
     >
-      {openThreadId && (
+      {openMessageId && (
         <>
           {/* Drag handle — left edge */}
           <div

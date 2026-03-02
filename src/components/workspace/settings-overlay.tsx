@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 const supabase = createClient();
 
@@ -150,9 +151,10 @@ function ProfileSection({
   const [savedUsername, setSavedUsername] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const router = useRouter();
+
   async function saveDisplayName() {
     setSavingName(true);
-    setError(null);
     const { error } = await supabase
       .from("profiles")
       .update({ display_name: displayName })
@@ -163,12 +165,12 @@ function ProfileSection({
       return;
     }
     setSavedName(true);
+    router.refresh(); // ← add this
     setTimeout(() => setSavedName(false), 2500);
   }
 
   async function saveUsername() {
     setSavingUsername(true);
-    setError(null);
     const { error } = await supabase
       .from("profiles")
       .update({ username })
@@ -179,6 +181,7 @@ function ProfileSection({
       return;
     }
     setSavedUsername(true);
+    router.refresh(); // ← add this
     setTimeout(() => setSavedUsername(false), 2500);
   }
 
@@ -297,9 +300,10 @@ function WorkspaceSection({
       .then(({ data }) => setInvites(data ?? []));
   }, [workspaceId, isAdmin]);
 
+  const router = useRouter();
+
   async function saveName() {
     setSavingName(true);
-    setError(null);
     const { error } = await supabase
       .from("workspaces")
       .update({ name })
@@ -310,12 +314,12 @@ function WorkspaceSection({
       return;
     }
     setSavedName(true);
+    router.refresh(); // ← add this
     setTimeout(() => setSavedName(false), 2500);
   }
 
   async function saveSlug() {
     setSavingSlug(true);
-    setError(null);
     const { error } = await supabase
       .from("workspaces")
       .update({ slug })
@@ -326,9 +330,8 @@ function WorkspaceSection({
       return;
     }
     setSavedSlug(true);
-    setTimeout(() => setSavedSlug(false), 2500);
-    // Redirect to new slug
-    window.location.href = `/${slug}`;
+    router.refresh(); // ← keep this, but remove window.location.href
+    window.location.href = `/${slug}`; // ← keep this only for slug change since URL changes
   }
 
   async function generateInvite() {

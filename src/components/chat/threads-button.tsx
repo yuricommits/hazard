@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useThreadStore } from "@/stores/thread-store";
-import { getOrCreateThread } from "@/lib/supabase/threads";
 
 const supabase = createClient();
 
 type ActiveThread = {
+  threadId: string;
   messageId: string;
   content: string;
   username: string;
@@ -18,60 +18,89 @@ export default function ThreadsButton({ channelId }: { channelId: string }) {
   const [open, setOpen] = useState(false);
   const [threads, setThreads] = useState<ActiveThread[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { openThread } = useThreadStore();
+  const { openThread, setThreadId } = useThreadStore();
 
-  useEffect(() => {
-    async function fetchThreads() {
-      const { data: threadRows } = await supabase
-        .from("threads")
-        .select("id, message_id")
-        .order("created_at", { ascending: false });
+  async function fetchThreads() {
+    const { data: threadRows } = await supabase
+      .from("threads")
+      .select("id, message_id")
+      .order("created_at", { ascending: false });
 
-      if (!threadRows?.length) return;
-
-      const messageIds = threadRows.map((t) => t.message_id);
-
-      const { data: msgs } = await supabase
-        .from("messages")
-        .select("id, content, profiles(username, display_name)")
-        .in("id", messageIds)
-        .eq("channel_id", channelId);
-
-      if (!msgs?.length) return;
-
-      const threadIds = threadRows.map((t) => t.id);
-      const { data: replies } = await supabase
-        .from("messages")
-        .select("thread_id")
-        .in("thread_id", threadIds);
-
-      const countByThread: Record<string, number> = {};
-      replies?.forEach((r) => {
-        if (r.thread_id)
-          countByThread[r.thread_id] = (countByThread[r.thread_id] ?? 0) + 1;
-      });
-
-      const result: ActiveThread[] = threadRows
-        .map((t) => {
-          const msg = msgs.find((m) => m.id === t.message_id);
-          if (!msg) return null;
-          const profile = Array.isArray(msg.profiles)
-            ? msg.profiles[0]
-            : msg.profiles;
-          return {
-            messageId: t.message_id,
-            content:
-              msg.content.slice(0, 80) + (msg.content.length > 80 ? "…" : ""),
-            username: profile?.display_name ?? profile?.username ?? "Unknown",
-            replyCount: countByThread[t.id] ?? 0,
-          };
-        })
-        .filter(Boolean) as ActiveThread[];
-
-      setThreads(result);
+    if (!threadRows?.length) {
+      setThreads([]);
+      return;
     }
 
+    const messageIds = threadRows.map((t) => t.message_id);
+
+    const { data: msgs } = await supabase
+      .from("messages")
+      .select("id, content, profiles(username, display_name)")
+      .in("id", messageIds)
+      .eq("channel_id", channelId);
+
+    if (!msgs?.length) {
+      setThreads([]);
+      return;
+    }
+
+    const threadIds = threadRows.map((t) => t.id);
+    const { data: replies } = await supabase
+      .from("messages")
+      .select("thread_id")
+      .in("thread_id", threadIds);
+
+    const countByThread: Record<string, number> = {};
+    replies?.forEach((r) => {
+      if (r.thread_id)
+        countByThread[r.thread_id] = (countByThread[r.thread_id] ?? 0) + 1;
+    });
+
+    const result: ActiveThread[] = threadRows
+      .map((t) => {
+        const msg = msgs.find((m) => m.id === t.message_id);
+        if (!msg) return null;
+        const profile = Array.isArray(msg.profiles)
+          ? msg.profiles[0]
+          : msg.profiles;
+        return {
+          threadId: t.id,
+          messageId: t.message_id,
+          content:
+            msg.content.slice(0, 80) + (msg.content.length > 80 ? "…" : ""),
+          username: profile?.display_name ?? profile?.username ?? "Unknown",
+          replyCount: countByThread[t.id] ?? 0,
+        };
+      })
+      .filter(Boolean) as ActiveThread[];
+
+    setThreads(result);
+  }
+
+  // Initial fetch + realtime subscription on threads table
+  useEffect(() => {
     fetchThreads();
+
+    const channel = supabase
+      .channel(`threads-button:${channelId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "threads" },
+        () => fetchThreads(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          if (payload.new.thread_id) fetchThreads();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
   // Close on outside click
@@ -88,11 +117,10 @@ export default function ThreadsButton({ channelId }: { channelId: string }) {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  async function handleOpenThread(messageId: string) {
+  function handleOpenThread(thread: ActiveThread) {
     setOpen(false);
-    openThread(null, messageId);
-    const threadId = await getOrCreateThread(messageId, "");
-    if (threadId) useThreadStore.getState().setThreadId(threadId);
+    openThread(thread.threadId, thread.messageId);
+    setThreadId(thread.threadId);
   }
 
   return (
@@ -140,7 +168,7 @@ export default function ThreadsButton({ channelId }: { channelId: string }) {
               {threads.map((t) => (
                 <button
                   key={t.messageId}
-                  onClick={() => handleOpenThread(t.messageId)}
+                  onClick={() => handleOpenThread(t)}
                   className="flex flex-col gap-1 px-3 py-2.5 hover:bg-zinc-800 transition-colors text-left"
                 >
                   <div className="flex items-center justify-between">
@@ -161,3 +189,10 @@ export default function ThreadsButton({ channelId }: { channelId: string }) {
     </div>
   );
 }
+
+// What changed:
+
+// fetchThreads extracted to a named function so realtime can call it
+// Realtime subscription on threads (INSERT) and messages (INSERT with thread_id) — both trigger a re-fetch
+// handleOpenThread now passes the real threadId directly — no more getOrCreateThread call with empty userId
+// threadId stored in the ActiveThread type so it's available when opening
