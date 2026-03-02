@@ -9,7 +9,6 @@ import { X, User, LayoutGrid, Plus, Copy, Check, Trash2 } from "lucide-react";
 const supabase = createClient();
 
 type Section = "profile" | "workspace";
-
 type Invite = {
   id: string;
   token: string;
@@ -18,7 +17,6 @@ type Invite = {
   use_count: number;
   is_active: boolean;
 };
-
 type Props = {
   open: boolean;
   initialSection?: Section;
@@ -34,7 +32,6 @@ type Props = {
 function inviteUrl(token: string) {
   return `${window.location.origin}/invite/${token}`;
 }
-
 function formatExpiry(expiresAt: string | null) {
   if (!expiresAt) return "No expiry";
   return new Date(expiresAt).toLocaleDateString(undefined, {
@@ -43,8 +40,6 @@ function formatExpiry(expiresAt: string | null) {
     year: "numeric",
   });
 }
-
-// ── Primitives ────────────────────────────────────────────────────────────────
 
 function SettingRow({
   label,
@@ -56,7 +51,7 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-6 py-4 border-b border-zinc-800/50 last:border-0">
+    <div className="flex items-start justify-between gap-6 py-4 border-b border-zinc-800/60 last:border-0">
       <div className="flex flex-col gap-0.5 min-w-0">
         <span className="text-sm font-medium text-zinc-200">{label}</span>
         {description && (
@@ -85,7 +80,7 @@ function SettingInput({
 }) {
   return (
     <div className="flex flex-col gap-1 items-end">
-      <div className="flex items-center bg-black border border-zinc-800 rounded-lg overflow-hidden focus-within:border-zinc-600 hover:border-zinc-700 transition-colors">
+      <div className="flex items-center bg-black border border-zinc-800 hover:border-zinc-700 focus-within:border-zinc-600 transition-colors overflow-hidden">
         {prefix && (
           <span className="px-3 text-xs text-zinc-600 border-r border-zinc-800 py-2 select-none whitespace-nowrap">
             {prefix}
@@ -116,18 +111,12 @@ function SaveButton({
     <button
       onClick={onClick}
       disabled={saving}
-      className={`h-8 px-3 rounded-lg text-xs font-medium transition-all ${
-        saved
-          ? "bg-zinc-900 text-emerald-400 border border-zinc-800"
-          : "bg-white hover:bg-zinc-100 text-black"
-      } disabled:opacity-50`}
+      className={`h-8 px-3 text-xs font-medium transition-all border ${saved ? "border-zinc-800 text-emerald-400" : "border-zinc-700 hover:border-zinc-500 bg-white hover:bg-zinc-100 text-black"} disabled:opacity-50`}
     >
       {saving ? "Saving..." : saved ? "✓ Saved" : "Save"}
     </button>
   );
 }
-
-// ── Profile ───────────────────────────────────────────────────────────────────
 
 function ProfileSection({
   currentUserId,
@@ -189,10 +178,9 @@ function ProfileSection({
           Manage your personal account details.
         </p>
       </div>
-
-      <div className="py-4 border-b border-zinc-800/50">
+      <div className="py-4 border-b border-zinc-800/60">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-lg font-semibold text-zinc-300">
+          <div className="w-12 h-12 border border-zinc-800 flex items-center justify-center text-lg font-semibold text-zinc-300">
             {(displayName || username)?.[0]?.toUpperCase() ?? "?"}
           </div>
           <div>
@@ -203,7 +191,6 @@ function ProfileSection({
           </div>
         </div>
       </div>
-
       <SettingRow
         label="Display name"
         description="Your name visible to other members."
@@ -219,7 +206,6 @@ function ProfileSection({
           saved={savedName}
         />
       </SettingRow>
-
       <SettingRow
         label="Username"
         description="Your unique @handle in this workspace."
@@ -236,17 +222,15 @@ function ProfileSection({
           saved={savedUsername}
         />
       </SettingRow>
-
       {error && <p className="text-xs text-red-400 pt-2">{error}</p>}
-
-      <div className="pt-4 mt-2 border-t border-zinc-800/50">
+      <div className="pt-4 mt-2 border-t border-zinc-800/60">
         <SettingRow
           label="Sign out"
           description="Sign out of your account on this device."
         >
           <button
             onClick={onSignOut}
-            className="h-8 px-3 rounded-lg text-xs font-medium bg-zinc-900 border border-zinc-800 text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-colors"
+            className="h-8 px-3 text-xs font-medium border border-zinc-800 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 transition-colors"
           >
             Sign out
           </button>
@@ -255,8 +239,6 @@ function ProfileSection({
     </div>
   );
 }
-
-// ── Workspace ─────────────────────────────────────────────────────────────────
 
 function WorkspaceSection({
   workspaceId,
@@ -283,7 +265,6 @@ function WorkspaceSection({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expiry, setExpiry] = useState<"never" | "7d" | "30d">("never");
   const [error, setError] = useState<string | null>(null);
-
   const isAdmin = userRole === "owner" || userRole === "admin";
 
   useEffect(() => {
@@ -382,7 +363,6 @@ function WorkspaceSection({
           Manage your workspace settings and invite links.
         </p>
       </div>
-
       {isAdmin ? (
         <>
           <SettingRow
@@ -400,7 +380,6 @@ function WorkspaceSection({
               saved={savedName}
             />
           </SettingRow>
-
           <SettingRow
             label="Workspace URL"
             description="Changing this will update your URL and redirect."
@@ -418,10 +397,7 @@ function WorkspaceSection({
               saved={savedSlug}
             />
           </SettingRow>
-
           {error && <p className="text-xs text-red-400 py-2">{error}</p>}
-
-          {/* Invite links */}
           <div className="pt-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div>
@@ -433,12 +409,12 @@ function WorkspaceSection({
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <div className="flex rounded-lg border border-zinc-800 overflow-hidden text-xs">
+                <div className="flex border border-zinc-800 overflow-hidden text-xs">
                   {(["never", "7d", "30d"] as const).map((opt) => (
                     <button
                       key={opt}
                       onClick={() => setExpiry(opt)}
-                      className={`px-2.5 py-1.5 transition-colors ${expiry === opt ? "bg-zinc-800 text-zinc-100" : "text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900"}`}
+                      className={`px-2.5 py-1.5 transition-colors border-r border-zinc-800 last:border-0 ${expiry === opt ? "bg-zinc-800 text-zinc-100" : "text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/40"}`}
                     >
                       {opt === "never"
                         ? "No expiry"
@@ -451,24 +427,23 @@ function WorkspaceSection({
                 <button
                   onClick={generateInvite}
                   disabled={generating}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white hover:bg-zinc-100 text-xs font-medium text-black transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 h-8 px-3 border border-zinc-700 hover:border-zinc-500 bg-white hover:bg-zinc-100 text-xs font-medium text-black transition-colors disabled:opacity-50"
                 >
                   <Plus size={11} strokeWidth={2.5} />
                   {generating ? "Generating..." : "Generate"}
                 </button>
               </div>
             </div>
-
             {invites.length === 0 ? (
-              <div className="text-xs text-zinc-600 text-center py-6 border border-dashed border-zinc-800 rounded-lg">
+              <div className="text-xs text-zinc-700 text-center py-6 border border-dashed border-zinc-800">
                 No active invite links
               </div>
             ) : (
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col border border-zinc-800 divide-y divide-zinc-800">
                 {invites.map((inv) => (
                   <div
                     key={inv.id}
-                    className="flex items-center gap-2 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5"
+                    className="flex items-center gap-2 px-3 py-2.5"
                   >
                     <code className="text-xs text-zinc-400 font-mono flex-1 truncate">
                       /invite/{inv.token}
@@ -482,7 +457,7 @@ function WorkspaceSection({
                     </span>
                     <button
                       onClick={() => copyInvite(inv.token, inv.id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                      className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:text-zinc-200 hover:bg-zinc-900/40 transition-colors border border-transparent hover:border-zinc-800"
                     >
                       {copiedId === inv.id ? (
                         <Check size={12} className="text-emerald-400" />
@@ -492,7 +467,7 @@ function WorkspaceSection({
                     </button>
                     <button
                       onClick={() => revokeInvite(inv.id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-700 hover:text-red-400 hover:bg-zinc-800 transition-colors"
+                      className="w-7 h-7 flex items-center justify-center text-zinc-700 hover:text-red-400 hover:bg-zinc-900/40 transition-colors border border-transparent hover:border-zinc-800"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -510,8 +485,6 @@ function WorkspaceSection({
     </div>
   );
 }
-
-// ── Main overlay ──────────────────────────────────────────────────────────────
 
 export default function SettingsOverlay({
   open,
@@ -564,42 +537,35 @@ export default function SettingsOverlay({
             className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.97, y: 10 }}
+            initial={{ opacity: 0, scale: 0.98, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 10 }}
+            exit={{ opacity: 0, scale: 0.98, y: 8 }}
             transition={{ type: "spring", stiffness: 400, damping: 32 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none"
           >
-            <div
-              key={initialSection}
-              className="pointer-events-auto w-full max-w-2xl h-130 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex overflow-hidden"
-            >
+            <div className="pointer-events-auto w-full max-w-2xl h-130 bg-black border border-zinc-800 shadow-2xl flex overflow-hidden">
               {/* Left nav */}
-              <div className="w-44 shrink-0 bg-black border-r border-zinc-800 flex flex-col p-3 gap-0.5">
-                <p className="text-[10px] font-medium text-zinc-700 uppercase tracking-widest px-3 py-2">
+              <div className="w-44 shrink-0 border-r border-zinc-800 flex flex-col">
+                <p className="text-[10px] font-medium text-zinc-700 uppercase tracking-widest px-4 py-3 border-b border-zinc-800">
                   Settings
                 </p>
                 {(["profile", "workspace"] as const).map((s) => (
                   <button
                     key={s}
                     onClick={() => setSection(s)}
-                    className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors text-left ${
-                      section === s
-                        ? "bg-zinc-900 text-zinc-100"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50"
-                    }`}
+                    className={`flex items-center gap-2.5 w-full px-4 py-3 text-sm transition-colors text-left border-b border-zinc-800/50 ${section === s ? "bg-zinc-900/60 text-zinc-100" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30"}`}
                   >
                     {s === "profile" ? (
                       <User
                         size={13}
                         strokeWidth={1.5}
-                        className="text-zinc-500"
+                        className="text-zinc-600"
                       />
                     ) : (
                       <LayoutGrid
                         size={13}
                         strokeWidth={1.5}
-                        className="text-zinc-500"
+                        className="text-zinc-600"
                       />
                     )}
                     {s === "profile" ? "Profile" : "Workspace"}
@@ -617,12 +583,11 @@ export default function SettingsOverlay({
                   </div>
                   <button
                     onClick={onCloseAction}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                    className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/40 border border-transparent hover:border-zinc-800 transition-colors"
                   >
                     <X size={14} />
                   </button>
                 </div>
-
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                   <AnimatePresence mode="wait">
                     {section === "profile" ? (

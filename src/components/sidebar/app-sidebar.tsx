@@ -48,9 +48,9 @@ export default function AppSidebar({
   return (
     <>
       <motion.aside
-        animate={{ width: collapsed ? 56 : 240 }}
+        animate={{ width: collapsed ? 48 : 220 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="border-r border-zinc-800 flex flex-col shrink-0 overflow-hidden relative"
+        className="bg-black border-r border-zinc-800 flex flex-col shrink-0 overflow-hidden relative"
       >
         <WorkspacePresence
           workspaceId={workspaceId}
@@ -59,44 +59,51 @@ export default function AppSidebar({
 
         {/* Header */}
         <div className="h-12 flex items-center justify-between px-3 border-b border-zinc-800 shrink-0">
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="text-sm font-semibold text-zinc-50 truncate"
-              >
-                {workspaceName}
-              </motion.span>
-            )}
-          </AnimatePresence>
-          <motion.button
-            onClick={toggle}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            className={`w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors shrink-0 ${collapsed ? "mx-auto" : ""}`}
-          >
-            <motion.svg
-              animate={{ rotate: collapsed ? 180 : 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          {collapsed ? (
+            <button
+              onClick={toggle}
+              className="mx-auto w-7 h-7 flex items-center justify-center text-[11px] font-semibold text-zinc-500 hover:text-zinc-200 transition-colors"
             >
-              <path d="M15 18l-6-6 6-6" />
-            </motion.svg>
-          </motion.button>
+              {workspaceName[0]?.toUpperCase()}
+            </button>
+          ) : (
+            <>
+              <AnimatePresence>
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="text-sm font-medium text-zinc-100 truncate"
+                >
+                  {workspaceName}
+                </motion.span>
+              </AnimatePresence>
+              <motion.button
+                onClick={toggle}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-6 h-6 flex items-center justify-center text-zinc-600 hover:text-zinc-300 transition-colors shrink-0"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </motion.button>
+            </>
+          )}
         </div>
 
         {/* Channel list */}
-        <div className="flex-1 overflow-y-auto py-2">
+        <div className="flex-1 overflow-y-auto">
           <AnimatePresence>
             {!collapsed && (
               <motion.p
@@ -104,7 +111,7 @@ export default function AppSidebar({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="px-3 py-1 text-[10px] font-medium text-zinc-500 uppercase tracking-widest"
+                className="px-3 pt-3 pb-1 text-[10px] font-medium text-zinc-700 uppercase tracking-widest"
               >
                 Channels
               </motion.p>
@@ -118,26 +125,30 @@ export default function AppSidebar({
                 key={channel.id}
                 href={`/${workspaceSlug}/${channel.name}`}
                 title={collapsed ? `#${channel.name}` : undefined}
-                className={`relative flex items-center gap-2 mx-1 px-2 py-1.5 rounded-md text-sm transition-colors ${
+                className={`relative flex items-center gap-2 px-3 py-2 text-sm transition-colors border-b border-zinc-800/40 ${
                   isActive
-                    ? "bg-zinc-800 text-zinc-50"
-                    : "text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800/50"
+                    ? "bg-zinc-900/60 text-zinc-100"
+                    : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/30"
                 }`}
               >
-                {/* Active indicator */}
                 {isActive && (
                   <motion.span
                     layoutId="active-channel"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-violet-500 rounded-full"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-full bg-white"
                   />
                 )}
-                <span
-                  className={`shrink-0 ${isActive ? "text-violet-400" : "text-zinc-600"}`}
-                >
-                  #
-                </span>
-                <AnimatePresence>
-                  {!collapsed && (
+
+                {collapsed ? (
+                  <span className="text-[10px] font-medium text-zinc-500 mx-auto">
+                    {channel.name[0].toUpperCase()}
+                  </span>
+                ) : (
+                  <>
+                    <span
+                      className={`shrink-0 text-sm ${isActive ? "text-zinc-400" : "text-zinc-700"}`}
+                    >
+                      #
+                    </span>
                     <motion.span
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -147,8 +158,8 @@ export default function AppSidebar({
                     >
                       {channel.name}
                     </motion.span>
-                  )}
-                </AnimatePresence>
+                  </>
+                )}
               </Link>
             );
           })}
@@ -171,20 +182,21 @@ export default function AppSidebar({
         </div>
 
         {/* Bottom bar */}
-        <div className="p-2 border-t border-zinc-800 shrink-0 flex flex-col gap-1">
-          <AiPanelButton collapsed={collapsed} />
+        <div className="border-t border-zinc-800 shrink-0">
+          <div className="border-b border-zinc-800/60">
+            <AiPanelButton collapsed={collapsed} />
+          </div>
 
-          {/* Settings */}
           <button
             onClick={() => openSettings("workspace")}
-            title="Workspace settings"
-            className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ${
-              collapsed ? "justify-center mx-1" : "mx-1"
+            title="Settings"
+            className={`w-full flex items-center gap-2 px-3 py-2.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/30 transition-colors border-b border-zinc-800/60 ${
+              collapsed ? "justify-center" : ""
             }`}
           >
             <svg
-              width="14"
-              height="14"
+              width="13"
+              height="13"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -214,16 +226,16 @@ export default function AppSidebar({
           {/* User row */}
           <button
             onClick={() => openSettings("profile")}
-            title="Profile settings"
-            className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-800 transition-colors w-full group ${
+            title="Profile"
+            className={`w-full flex items-center gap-2 px-3 py-2.5 hover:bg-zinc-900/30 transition-colors ${
               collapsed ? "justify-center" : ""
             }`}
           >
             <div className="relative shrink-0">
-              <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-[11px] font-medium text-zinc-300 group-hover:ring-1 group-hover:ring-violet-500/40 transition-all">
+              <div className="w-6 h-6 border border-zinc-700 flex items-center justify-center text-[11px] font-medium text-zinc-300">
                 {(displayName || username)?.[0]?.toUpperCase() ?? "?"}
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-zinc-950" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-black" />
             </div>
             <AnimatePresence>
               {!collapsed && (

@@ -106,31 +106,26 @@ export default function MessageFeed({
     async function fetchReplyCounts() {
       const messageIds = messages.map((m) => m.id);
       if (!messageIds.length) return;
-
       const { data: threads } = await supabase
         .from("threads")
         .select("id, message_id")
         .in("message_id", messageIds);
       if (!threads?.length) return;
-
       const threadIds = threads.map((t) => t.id);
       const { data: replies } = await supabase
         .from("messages")
         .select("thread_id")
         .in("thread_id", threadIds);
       if (!replies?.length) return;
-
       const countByThread: Record<string, number> = {};
       replies.forEach((r) => {
         if (r.thread_id)
           countByThread[r.thread_id] = (countByThread[r.thread_id] ?? 0) + 1;
       });
-
       const countByMessage: Record<string, number> = {};
       threads.forEach((t) => {
         countByMessage[t.message_id] = countByThread[t.id] ?? 0;
       });
-
       setMessages((prev) =>
         prev.map((m) => ({ ...m, replyCount: countByMessage[m.id] ?? 0 })),
       );
@@ -157,13 +152,15 @@ export default function MessageFeed({
             .select("id, username, display_name, avatar_url")
             .eq("id", payload.new.user_id)
             .single();
-          const newMessage: Message = {
-            ...(payload.new as Message),
-            profiles: profile,
-            reactions: [],
-            replyCount: 0,
-          };
-          setMessages((prev) => [...prev, newMessage]);
+          setMessages((prev) => [
+            ...prev,
+            {
+              ...(payload.new as Message),
+              profiles: profile,
+              reactions: [],
+              replyCount: 0,
+            },
+          ]);
         },
       )
       .subscribe();
@@ -264,10 +261,10 @@ export default function MessageFeed({
   );
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-0">
+    <div className="flex-1 overflow-y-auto flex flex-col bg-black">
       {messages.length === 0 && (
         <div className="flex items-center justify-center h-full">
-          <p className="text-sm text-zinc-600">Beginning of #{channelName}</p>
+          <p className="text-sm text-zinc-700">Beginning of #{channelName}</p>
         </div>
       )}
 
@@ -280,26 +277,26 @@ export default function MessageFeed({
         const hasThread = message.replyCount > 0;
 
         return (
-          <div key={message.id} className="flex flex-col">
+          <div
+            key={message.id}
+            className="flex flex-col border-b border-zinc-800/40"
+          >
             <div
-              className={`flex items-start gap-3 px-2 rounded-lg hover:bg-zinc-900/40 group relative ${grouped ? "py-0.5" : "py-1.5 mt-0.5"}`}
+              className={`flex items-start gap-3 px-4 hover:bg-zinc-900/20 group relative ${grouped ? "py-0.5" : "pt-3 pb-1"}`}
             >
               {/* Hover actions */}
-              <div className="absolute right-2 top-1 hidden group-hover:flex items-center gap-0.5 bg-zinc-900 border border-zinc-800 rounded-lg px-1 py-1 shadow-xl z-10">
+              <div className="absolute right-0 top-0 hidden group-hover:flex items-center border-l border-b border-zinc-800 bg-black z-10">
                 <button
                   onClick={() => handleReply(message)}
-                  title="Reply"
-                  className="flex items-center gap-1.5 h-6 px-2 rounded-md text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                  className="flex items-center gap-1.5 h-8 px-3 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 transition-colors border-r border-zinc-800"
                 >
                   <CornerUpLeft size={11} strokeWidth={2} />
                   Reply
                 </button>
-                <div className="w-px h-3 bg-zinc-800 mx-0.5" />
                 {!hasThread && (
                   <button
                     onClick={() => handleCreateThread(message.id)}
-                    title="Create thread"
-                    className="flex items-center gap-1.5 h-6 px-2 rounded-md text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                    className="flex items-center gap-1.5 h-8 px-3 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 transition-colors"
                   >
                     <MessageSquare size={11} strokeWidth={2} />
                     Thread
@@ -318,17 +315,17 @@ export default function MessageFeed({
                   </span>
                 </div>
               ) : (
-                <div className="relative shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">
+                <div className="relative shrink-0 mt-0.5">
+                  <div className="w-8 h-8 border border-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">
                     {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
                   </div>
                   {onlineUserIds.has(message.user_id) && (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-zinc-950" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-black" />
                   )}
                 </div>
               )}
 
-              <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex flex-col min-w-0 flex-1 pb-1">
                 {!grouped && (
                   <div className="flex items-baseline gap-2 mb-0.5">
                     <span className="text-sm font-medium text-zinc-100">
@@ -356,20 +353,18 @@ export default function MessageFeed({
                 {hasThread && (
                   <button
                     onClick={() => handleViewThread(message.id)}
-                    className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors w-fit group/thread"
+                    className="mt-1.5 flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors w-fit border border-zinc-800 px-2 py-1 hover:border-zinc-700"
                   >
                     <MessageSquare size={11} strokeWidth={1.5} />
-                    <span className="group-hover/thread:underline">
-                      {message.replyCount}{" "}
-                      {message.replyCount === 1 ? "reply" : "replies"}
-                    </span>
+                    {message.replyCount}{" "}
+                    {message.replyCount === 1 ? "reply" : "replies"}
                   </button>
                 )}
               </div>
             </div>
 
             {aiResponse && (
-              <div className="ml-11 pl-4 border-l border-zinc-800 mt-0.5 mb-1">
+              <div className="ml-11 pl-4 border-l-2 border-zinc-800 mx-4 my-1">
                 <AiMessage content={aiResponse.content} />
               </div>
             )}

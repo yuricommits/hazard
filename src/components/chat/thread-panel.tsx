@@ -9,7 +9,6 @@ import { getOrCreateThread } from "@/lib/supabase/threads";
 import { X, MessageSquare, ArrowUp } from "lucide-react";
 
 const supabase = createClient();
-
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 520;
 const DEFAULT_WIDTH = 288;
@@ -20,7 +19,6 @@ type Profile = {
   display_name: string | null;
   avatar_url: string | null;
 };
-
 type Message = {
   id: string;
   content: string;
@@ -39,7 +37,6 @@ export default function ThreadPanel() {
   const [isDragging, setIsDragging] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(DEFAULT_WIDTH);
   const handleMouseMove = useRef<(e: MouseEvent) => void>(() => {});
@@ -47,7 +44,6 @@ export default function ThreadPanel() {
 
   useEffect(() => {
     if (!openThreadId) return;
-
     async function fetchReplies() {
       const { data } = await supabase
         .from("messages")
@@ -56,9 +52,7 @@ export default function ThreadPanel() {
         .order("created_at", { ascending: true });
       setReplies(data ?? []);
     }
-
     fetchReplies();
-
     const channel = supabase
       .channel(`thread:${openThreadId}`)
       .on(
@@ -75,15 +69,13 @@ export default function ThreadPanel() {
             .select("id, username, display_name, avatar_url")
             .eq("id", payload.new.user_id)
             .single();
-          const newReply: Message = {
-            ...(payload.new as Message),
-            profiles: profile,
-          };
-          setReplies((prev) => [...prev, newReply]);
+          setReplies((prev) => [
+            ...prev,
+            { ...(payload.new as Message), profiles: profile },
+          ]);
         },
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -100,16 +92,15 @@ export default function ThreadPanel() {
     setIsDragging(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
-
     handleMouseMove.current = (ev: MouseEvent) => {
       const delta = dragStartX.current - ev.clientX;
-      const newWidth = Math.min(
-        MAX_WIDTH,
-        Math.max(MIN_WIDTH, dragStartWidth.current + delta),
+      setPanelWidth(
+        Math.min(
+          MAX_WIDTH,
+          Math.max(MIN_WIDTH, dragStartWidth.current + delta),
+        ),
       );
-      setPanelWidth(newWidth);
     };
-
     handleMouseUp.current = () => {
       setIsDragging(false);
       document.body.style.cursor = "";
@@ -117,7 +108,6 @@ export default function ThreadPanel() {
       window.removeEventListener("mousemove", handleMouseMove.current);
       window.removeEventListener("mouseup", handleMouseUp.current);
     };
-
     window.addEventListener("mousemove", handleMouseMove.current);
     window.addEventListener("mouseup", handleMouseUp.current);
   }
@@ -125,33 +115,30 @@ export default function ThreadPanel() {
   async function sendReply() {
     if (!reply.trim() || sending || !openMessageId) return;
     setSending(true);
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
-
     const { data: parentMessage } = await supabase
       .from("messages")
       .select("channel_id")
       .eq("id", openMessageId)
       .single();
     if (!parentMessage) return;
-
     let threadId = openThreadId;
     if (!threadId) {
       threadId = await getOrCreateThread(openMessageId, user.id);
       if (!threadId) return;
       useThreadStore.getState().setThreadId(threadId);
     }
-
-    await supabase.from("messages").insert({
-      channel_id: parentMessage.channel_id,
-      user_id: user.id,
-      content: reply.trim(),
-      thread_id: threadId,
-    });
-
+    await supabase
+      .from("messages")
+      .insert({
+        channel_id: parentMessage.channel_id,
+        user_id: user.id,
+        content: reply.trim(),
+        thread_id: threadId,
+      });
     setReply("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setSending(false);
@@ -179,7 +166,6 @@ export default function ThreadPanel() {
     >
       {openMessageId && (
         <>
-          {/* Drag handle */}
           <div
             onMouseDown={onDragHandleMouseDown}
             className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 group"
@@ -190,12 +176,12 @@ export default function ThreadPanel() {
           </div>
 
           {/* Header */}
-          <div className="h-12 flex items-center justify-between px-4 shrink-0 border-b border-zinc-800">
+          <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
             <div className="flex items-center gap-2">
               <MessageSquare
                 size={13}
                 strokeWidth={1.5}
-                className="text-zinc-500"
+                className="text-zinc-600"
               />
               <span className="text-sm font-medium text-zinc-200">Thread</span>
               {replies.length > 0 && (
@@ -206,14 +192,14 @@ export default function ThreadPanel() {
             </div>
             <button
               onClick={closeThread}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+              className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/40 transition-colors border border-transparent hover:border-zinc-800"
             >
               <X size={14} />
             </button>
           </div>
 
           {/* Replies */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+          <div className="flex-1 overflow-y-auto flex flex-col">
             {replies.length === 0 && (
               <div className="flex flex-col items-center gap-2 mt-10">
                 <MessageSquare
@@ -222,14 +208,14 @@ export default function ThreadPanel() {
                   className="text-zinc-800"
                 />
                 <p className="text-xs text-zinc-600">No replies yet</p>
-                <p className="text-[11px] text-zinc-700">
-                  Be the first to reply
-                </p>
               </div>
             )}
             {replies.map((r) => (
-              <div key={r.id} className="flex items-start gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
+              <div
+                key={r.id}
+                className="flex items-start gap-2.5 px-4 py-3 border-b border-zinc-800/40 hover:bg-zinc-900/20 transition-colors"
+              >
+                <div className="w-7 h-7 border border-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
                   {r.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
@@ -254,8 +240,8 @@ export default function ThreadPanel() {
           </div>
 
           {/* Composer */}
-          <div className="p-3 shrink-0">
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl focus-within:border-zinc-700 transition-colors">
+          <div className="border-t border-zinc-800 shrink-0">
+            <div className="px-4 py-3">
               <textarea
                 ref={textareaRef}
                 value={reply}
@@ -267,21 +253,21 @@ export default function ThreadPanel() {
                 onKeyDown={handleKeyDown}
                 placeholder="Reply..."
                 rows={1}
-                className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 resize-none outline-none max-h-32 overflow-y-auto px-3 pt-3 pb-2"
+                className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-700 resize-none outline-none max-h-32 overflow-y-auto"
               />
-              <div className="flex items-center justify-end px-2 pb-2">
-                <button
-                  onClick={sendReply}
-                  disabled={!reply.trim() || sending}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white hover:bg-zinc-200 disabled:bg-zinc-900 disabled:text-zinc-700 text-black transition-colors disabled:cursor-not-allowed"
-                >
-                  <ArrowUp size={14} strokeWidth={2.5} />
-                </button>
-              </div>
             </div>
-            <p className="text-[10px] text-zinc-700 mt-1.5 px-1">
-              Enter to reply · Shift+Enter for new line
-            </p>
+            <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-800">
+              <p className="text-[10px] text-zinc-700">
+                Enter to reply · Shift+Enter for new line
+              </p>
+              <button
+                onClick={sendReply}
+                disabled={!reply.trim() || sending}
+                className="w-7 h-7 flex items-center justify-center border border-zinc-700 hover:border-zinc-500 bg-white hover:bg-zinc-100 disabled:bg-transparent disabled:border-zinc-800 disabled:text-zinc-700 text-black transition-colors"
+              >
+                <ArrowUp size={14} strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
         </>
       )}

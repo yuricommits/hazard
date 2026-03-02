@@ -15,7 +15,6 @@ type Member = {
   displayName: string | null;
   role: "owner" | "admin" | "member";
 };
-
 const ROLE_ORDER = { owner: 0, admin: 1, member: 2 };
 
 export default function MembersPanel({ workspaceId }: { workspaceId: string }) {
@@ -69,66 +68,60 @@ export default function MembersPanel({ workspaceId }: { workspaceId: string }) {
             </div>
             <button
               onClick={closeMembers}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900 transition-colors"
+              className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/40 border border-transparent hover:border-zinc-800 transition-colors"
             >
               <X size={14} />
             </button>
           </div>
 
           {onlineCount > 0 && (
-            <div className="px-4 py-2 border-b border-zinc-800/50">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[11px] text-zinc-600">
-                  {onlineCount} online
-                </span>
-              </div>
+            <div className="px-4 py-2 border-b border-zinc-800/50 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[11px] text-zinc-600">
+                {onlineCount} online
+              </span>
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto py-2">
+          <div className="flex-1 overflow-y-auto">
             {members.length === 0 ? (
               <p className="text-xs text-zinc-700 text-center mt-8">
                 Loading...
               </p>
             ) : (
-              <div className="flex flex-col">
-                {members.map((m) => {
-                  const isOnline = onlineUserIds.has(m.userId);
-                  const initials = (m.displayName ??
-                    m.username)[0].toUpperCase();
-                  return (
-                    <div
-                      key={m.userId}
-                      className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-zinc-900/50 transition-colors"
-                    >
-                      <div className="relative shrink-0">
-                        <div className="w-6 h-6 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[10px] font-medium text-zinc-400">
-                          {initials}
-                        </div>
-                        {isOnline && (
-                          <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500 border border-black" />
-                        )}
+              members.map((m) => {
+                const isOnline = onlineUserIds.has(m.userId);
+                return (
+                  <div
+                    key={m.userId}
+                    className="flex items-center gap-2.5 px-4 py-2.5 border-b border-zinc-800/40 hover:bg-zinc-900/20 transition-colors"
+                  >
+                    <div className="relative shrink-0">
+                      <div className="w-6 h-6 border border-zinc-800 flex items-center justify-center text-[10px] font-medium text-zinc-400">
+                        {(m.displayName ?? m.username)[0].toUpperCase()}
                       </div>
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-xs text-zinc-300 truncate">
-                          {m.displayName ?? m.username}
-                        </span>
-                        {m.displayName && (
-                          <span className="text-[10px] text-zinc-600 truncate">
-                            @{m.username}
-                          </span>
-                        )}
-                      </div>
-                      {m.role !== "member" && (
-                        <span className="text-[10px] text-zinc-600 border border-zinc-800 rounded-full px-1.5 py-px shrink-0">
-                          {m.role}
+                      {isOnline && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500 border border-black" />
+                      )}
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-xs text-zinc-300 truncate">
+                        {m.displayName ?? m.username}
+                      </span>
+                      {m.displayName && (
+                        <span className="text-[10px] text-zinc-600 truncate">
+                          @{m.username}
                         </span>
                       )}
                     </div>
-                  );
-                })}
-              </div>
+                    {m.role !== "member" && (
+                      <span className="text-[10px] text-zinc-600 border border-zinc-800 px-1.5 py-px shrink-0">
+                        {m.role}
+                      </span>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         </>

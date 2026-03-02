@@ -34,7 +34,6 @@ export default async function ChannelPage({
     .select("id")
     .eq("slug", workspaceSlug)
     .single();
-
   if (!workspace) redirect("/create-workspace");
 
   const { data: channel } = await supabase
@@ -43,7 +42,6 @@ export default async function ChannelPage({
     .eq("workspace_id", workspace.id)
     .eq("name", channelName)
     .single();
-
   if (!channel) redirect(`/${workspaceSlug}`);
 
   const { data: messages } = await supabase
@@ -56,18 +54,20 @@ export default async function ChannelPage({
     .order("created_at", { ascending: true });
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-black">
       <AiChannelSync channelId={channel.id} channelName={channel.name} />
 
       {/* Channel header */}
       <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-zinc-600 text-sm">#</span>
+          <span className="text-zinc-700 text-sm">#</span>
           <h1 className="text-sm font-medium text-zinc-100">{channel.name}</h1>
         </div>
-        <div className="flex items-center gap-1">
-          <ThreadsButton channelId={channel.id} />
-          <button className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
+        <div className="flex items-center divide-x divide-zinc-800 border-l border-zinc-800">
+          <div className="px-3">
+            <ThreadsButton channelId={channel.id} />
+          </div>
+          <button className="flex items-center gap-1.5 px-3 h-12 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30 transition-colors">
             <svg
               width="12"
               height="12"
@@ -83,7 +83,9 @@ export default async function ChannelPage({
             </svg>
             Search
           </button>
-          <MembersPanelButton />
+          <div className="px-3">
+            <MembersPanelButton />
+          </div>
         </div>
       </div>
 

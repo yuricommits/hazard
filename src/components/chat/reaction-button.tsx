@@ -41,16 +41,12 @@ export default function ReactionButton({
 
   const grouped = reactions.reduce(
     (acc: Record<string, { count: number; hasReacted: boolean }>, r) => {
-      if (!acc[r.emoji]) {
-        acc[r.emoji] = { count: 0, hasReacted: false };
-      }
+      if (!acc[r.emoji]) acc[r.emoji] = { count: 0, hasReacted: false };
       acc[r.emoji].count++;
-      if (r.user_id === currentUserId) {
-        acc[r.emoji].hasReacted = true;
-      }
+      if (r.user_id === currentUserId) acc[r.emoji].hasReacted = true;
       return acc;
     },
-    {} as Record<string, { count: number; hasReacted: boolean }>,
+    {},
   );
 
   const hasReactions = Object.keys(grouped).length > 0;
@@ -59,7 +55,6 @@ export default function ReactionButton({
     const existing = reactions.find(
       (r) => r.emoji === emoji && r.user_id === currentUserId,
     );
-
     if (existing) {
       setReactions((prev) => prev.filter((r) => r.id !== existing.id));
       await supabase.from("reactions").delete().eq("id", existing.id);
@@ -70,11 +65,9 @@ export default function ReactionButton({
         user_id: currentUserId,
       };
       setReactions((prev) => [...prev, temp]);
-      await supabase.from("reactions").insert({
-        message_id: messageId,
-        user_id: currentUserId,
-        emoji,
-      });
+      await supabase
+        .from("reactions")
+        .insert({ message_id: messageId, user_id: currentUserId, emoji });
     }
   }
 
@@ -89,7 +82,7 @@ export default function ReactionButton({
         <div className="h-0 overflow-hidden group-hover:h-6 transition-all duration-150">
           <button
             onClick={() => setShowPicker(true)}
-            className="mt-0.5 px-1.5 py-0.5 rounded-full text-xs border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600"
+            className="mt-0.5 px-2 py-0.5 rounded-full text-xs border border-zinc-800 text-zinc-600 hover:text-zinc-300 hover:border-zinc-600 transition-colors"
           >
             +
           </button>
@@ -115,19 +108,19 @@ export default function ReactionButton({
           <button
             key={emoji}
             onClick={() => handleReaction(emoji)}
-            className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
               hasReacted
-                ? "bg-violet-500/20 border-violet-500/40 text-violet-300"
-                : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-600"
+                ? "bg-zinc-800 border-zinc-600 text-zinc-200"
+                : "bg-transparent border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
             }`}
           >
             <span>{emoji}</span>
-            <span>{count}</span>
+            <span className="text-[10px]">{count}</span>
           </button>
         ))}
         <button
           onClick={() => setShowPicker((prev) => !prev)}
-          className="max-w-0 group-hover:max-w-8 overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-full text-xs border border-transparent group-hover:border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 whitespace-nowrap px-1.5 py-0.5"
+          className="max-w-0 group-hover:max-w-8 overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-full text-xs border border-transparent group-hover:border-zinc-800 text-zinc-600 hover:text-zinc-300 hover:border-zinc-600 whitespace-nowrap px-2 py-0.5"
         >
           +
         </button>

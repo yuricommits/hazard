@@ -18,7 +18,6 @@ export default async function WorkspaceLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
   if (!user) redirect("/login");
 
   const { data: workspace } = await supabase
@@ -42,7 +41,7 @@ export default async function WorkspaceLayout({
     .single();
 
   return (
-    <div className="flex h-screen bg-zinc-950 overflow-hidden">
+    <div className="flex h-screen bg-black overflow-hidden">
       <AppSidebar
         workspaceName={workspace.name}
         workspaceSlug={slug}
@@ -52,9 +51,10 @@ export default async function WorkspaceLayout({
         displayName={profile?.display_name ?? null}
         channels={channels ?? []}
       />
-
-      <main className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden">{children}</div>
+      <main className="flex-1 flex overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {children}
+        </div>
         <ThreadPanel />
         <AiPanel workspaceId={workspace.id} currentUserId={user.id} />
         <MembersPanel workspaceId={workspace.id} />
