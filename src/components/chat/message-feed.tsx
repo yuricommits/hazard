@@ -8,9 +8,12 @@ import { useThreadStore } from "@/stores/thread-store";
 import { useReplyStore } from "@/stores/reply-store";
 import { getOrCreateThread } from "@/lib/supabase/threads";
 import ReactionButton from "@/components/chat/reaction-button";
+import MessageContextMenu from "@/components/chat/message-context-menu";
 import { usePresenceStore } from "@/stores/presence-store";
 import { usePendingMessages } from "@/stores/pending-messages-store";
-import { CornerUpLeft, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
+
+const supabase = createClient();
 
 type Profile = {
   id: string;
@@ -39,7 +42,11 @@ type Message = {
   replyCount: number;
 };
 
-const supabase = createClient();
+type ContextMenu = {
+  x: number;
+  y: number;
+  message: Message;
+};
 
 function isGrouped(messages: Message[], index: number): boolean {
   if (index === 0) return false;
@@ -71,14 +78,13 @@ export default function MessageFeed({
   const [messages, setMessages] = useState<Message[]>(
     initialMessages.map((m) => ({ ...m, replyCount: 0 })),
   );
-  // Track which tempIds are fading out
-  const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const { openThread } = useThreadStore();
   const { setReplyTo } = useReplyStore();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
-  const { pending, removePending } = usePendingMessages();
+  const { pending } = usePendingMessages();
 
   function handleReply(message: Message) {
     const username =
@@ -88,6 +94,41 @@ export default function MessageFeed({
       content: truncate(message.content),
       username,
     });
+  }
+
+  function handleContextMenu(e: React.MouseEvent, message: Message) {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, message });
+  }
+
+  async function handleReact(messageId: string, emoji: string) {
+    const msg = messages.find((m) => m.id === messageId);
+    const existing = msg?.reactions.find(
+      (r) => r.emoji === emoji && r.user_id === currentUserId,
+    );
+    if (existing) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                reactions: m.reactions.filter((r) => r.id !== existing.id),
+              }
+            : m,
+        ),
+      );
+      await supabase.from("reactions").delete().eq("id", existing.id);
+    } else {
+      const temp = { id: crypto.randomUUID(), emoji, user_id: currentUserId };
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, reactions: [...m.reactions, temp] } : m,
+        ),
+      );
+      await supabase
+        .from("reactions")
+        .insert({ message_id: messageId, user_id: currentUserId, emoji });
+    }
   }
 
   async function handleViewThread(messageId: string) {
@@ -149,23 +190,12 @@ export default function MessageFeed({
         async (payload) => {
           if (payload.new.thread_id) return;
 
-          // Find matching pending message
-          const matched = usePendingMessages
-            .getState()
-            .pending.find(
-              (p) =>
-                p.userId === payload.new.user_id &&
-                p.content === payload.new.content,
-            );
-
-          // Fetch profile
           const { data: profile } = await supabase
             .from("profiles")
             .select("id, username, display_name, avatar_url")
             .eq("id", payload.new.user_id)
             .single();
 
-          // Add real message first
           setMessages((prev) => {
             if (prev.some((m) => m.id === payload.new.id)) return prev;
             return [
@@ -178,26 +208,13 @@ export default function MessageFeed({
               },
             ];
           });
-
-          // Then fade out and remove pending after real message renders
-          if (matched) {
-            setFadingOut((prev) => new Set([...prev, matched.tempId]));
-            setTimeout(() => {
-              removePending(matched.tempId);
-              setFadingOut((prev) => {
-                const next = new Set(prev);
-                next.delete(matched.tempId);
-                return next;
-              });
-            }, 300);
-          }
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channelId, removePending]);
+  }, [channelId]);
 
   useEffect(() => {
     const channel = supabase
@@ -313,41 +330,14 @@ export default function MessageFeed({
         return (
           <div
             key={message.id}
-            className="flex flex-col border-b border-zinc-800/20"
+            className="flex flex-col border-b border-zinc-800/20 hover:bg-zinc-900/10 transition-colors"
+            onContextMenu={(e) => handleContextMenu(e, message)}
           >
             <div
-              className={`flex items-start gap-3 px-4 hover:bg-zinc-900/20 group relative ${grouped ? "py-0.5" : "pt-3 pb-1"}`}
+              className={`flex items-start gap-3 px-4 ${grouped ? "py-0.5" : "pt-3 pb-1"}`}
             >
-              {/* Hover actions */}
-              <div className="absolute right-0 top-0 hidden group-hover:flex items-center border-l border-b border-zinc-800/40 bg-black z-10">
-                <button
-                  onClick={() => handleReply(message)}
-                  className="flex items-center gap-1.5 h-8 px-3 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 transition-colors border-r border-zinc-800/40"
-                >
-                  <CornerUpLeft size={11} strokeWidth={2} />
-                  Reply
-                </button>
-                {!hasThread && (
-                  <button
-                    onClick={() => openThread(null, message.id)}
-                    className="flex items-center gap-1.5 h-8 px-3 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 transition-colors"
-                  >
-                    <MessageSquare size={11} strokeWidth={2} />
-                    Thread
-                  </button>
-                )}
-              </div>
-
-              {/* Avatar */}
               {grouped ? (
-                <div className="w-8 shrink-0 flex items-center justify-center">
-                  <span className="text-[10px] text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {new Date(message.created_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
+                <div className="w-8 shrink-0" />
               ) : (
                 <div className="relative shrink-0 mt-0.5">
                   <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">
@@ -403,12 +393,11 @@ export default function MessageFeed({
         );
       })}
 
-      {/* Optimistic pending messages — fade out when confirmed */}
+      {/* Optimistic pending messages */}
       {pendingForChannel.map((p) => (
         <div
           key={p.tempId}
-          className="flex flex-col border-b border-zinc-800/20 transition-opacity duration-300"
-          style={{ opacity: fadingOut.has(p.tempId) ? 0 : 0.5 }}
+          className="flex flex-col border-b border-zinc-800/20 opacity-50"
         >
           <div className="flex items-start gap-3 px-4 pt-3 pb-2">
             <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400 shrink-0 mt-0.5 animate-pulse">
@@ -433,6 +422,21 @@ export default function MessageFeed({
       ))}
 
       <div ref={bottomRef} />
+
+      {/* Context menu */}
+      {contextMenu && (
+        <MessageContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          hasThread={contextMenu.message.replyCount > 0}
+          onCloseAction={() => setContextMenu(null)}
+          onReplyAction={() => handleReply(contextMenu.message)}
+          onThreadAction={() => openThread(null, contextMenu.message.id)}
+          onReactAction={(emoji: string) =>
+            handleReact(contextMenu.message.id, emoji)
+          }
+        />
+      )}
     </div>
   );
 }

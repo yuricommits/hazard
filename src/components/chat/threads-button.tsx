@@ -39,22 +39,40 @@ export default function ThreadsButton({ channelId }: { channelId: string }) {
 
   async function fetchThreads() {
     setLoading(true);
+
+    // Get all messages in this channel that have threads
     const { data: threadData } = await supabase
       .from("threads")
-      .select(
-        "id, message_id, messages!threads_message_id_fkey(content, profiles(display_name, username))",
-      )
-      .eq("channel_id", channelId)
+      .select("id, message_id")
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(30);
 
-    if (!threadData) {
+    if (!threadData?.length) {
       setLoading(false);
       return;
     }
 
+    // Filter to threads whose parent message belongs to this channel
+    const messageIds = threadData.map((t) => t.message_id);
+    const { data: parentMessages } = await supabase
+      .from("messages")
+      .select("id, content, channel_id, profiles(display_name, username)")
+      .in("id", messageIds)
+      .eq("channel_id", channelId);
+
+    if (!parentMessages?.length) {
+      setLoading(false);
+      setThreads([]);
+      return;
+    }
+
+    const validMessageIds = new Set(parentMessages.map((m) => m.id));
+    const validThreads = threadData.filter((t) =>
+      validMessageIds.has(t.message_id),
+    );
+
     const previews: ThreadPreview[] = await Promise.all(
-      threadData.map(async (t) => {
+      validThreads.map(async (t) => {
         const { count } = await supabase
           .from("messages")
           .select("*", { count: "exact", head: true })
@@ -68,20 +86,25 @@ export default function ThreadsButton({ channelId }: { channelId: string }) {
           .limit(1)
           .single();
 
-        const msg = Array.isArray(t.messages) ? t.messages[0] : t.messages;
-        const profile = msg?.profiles
-          ? Array.isArray(msg.profiles)
-            ? msg.profiles[0]
-            : msg.profiles
+        const parentMsg = parentMessages.find((m) => m.id === t.message_id);
+        const profile = parentMsg?.profiles
+          ? Array.isArray(parentMsg.profiles)
+            ? parentMsg.profiles[0]
+            : parentMsg.profiles
           : null;
 
         return {
           id: t.id,
           messageId: t.message_id,
-          messageContent: msg?.content ?? "",
+          messageContent: parentMsg?.content ?? "",
           replyCount: count ?? 0,
           lastReplyAt: lastReply?.created_at ?? "",
-          authorName: profile?.display_name ?? profile?.username ?? "Unknown",
+          authorName:
+            (profile as { display_name?: string; username?: string } | null)
+              ?.display_name ??
+            (profile as { display_name?: string; username?: string } | null)
+              ?.username ??
+            "Unknown",
         };
       }),
     );
@@ -103,7 +126,10 @@ export default function ThreadsButton({ channelId }: { channelId: string }) {
   }
 
   return (
-    <div className="relative" ref={popoverRef}>
+    <div
+      className="relative h-full w-full flex items-center justify-center"
+      ref={popoverRef}
+    >
       <button
         onClick={handleToggle}
         title="Threads"
@@ -117,7 +143,7 @@ export default function ThreadsButton({ channelId }: { channelId: string }) {
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-0 w-72 bg-black border border-zinc-800 shadow-2xl z-50">
+        <div className="absolute top-full right-0 mt-0 w-80 bg-black border border-zinc-800 shadow-2xl z-50">
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-800">
             <span className="text-xs font-medium text-zinc-300">Threads</span>

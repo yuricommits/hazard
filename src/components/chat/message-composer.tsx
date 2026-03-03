@@ -29,7 +29,7 @@ export default function MessageComposer({
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { replyTo, clearReplyTo } = useReplyStore();
-  const { addPending } = usePendingMessages();
+  const { addPending, removePending } = usePendingMessages();
 
   useEffect(() => {
     if (replyTo) setTimeout(() => textareaRef.current?.focus(), 0);
@@ -102,15 +102,13 @@ export default function MessageComposer({
       if (done) break;
       fullContent += decoder.decode(value, { stream: true });
     }
-    await supabase
-      .from("messages")
-      .insert({
-        channel_id: channelId,
-        user_id: currentUserId,
-        content: fullContent,
-        is_ai: true,
-        parent_message_id: parentId,
-      });
+    await supabase.from("messages").insert({
+      channel_id: channelId,
+      user_id: currentUserId,
+      content: fullContent,
+      is_ai: true,
+      parent_message_id: parentId,
+    });
   }
 
   async function sendMessage() {
@@ -149,6 +147,7 @@ export default function MessageComposer({
         })
         .select("id")
         .single();
+      removePending(tempId); // ← clean up here
       await sendAiMessage(text.slice(7).trim(), userMsg?.id ?? null);
     } else {
       await supabase
@@ -158,6 +157,7 @@ export default function MessageComposer({
           user_id: currentUserId,
           content: text,
         });
+      removePending(tempId); // ← and here
     }
 
     setSending(false);
