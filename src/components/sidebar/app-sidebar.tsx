@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
 import LogoNode from "@/components/sidebar/logo-node";
 import CreateChannelButton from "@/components/sidebar/create-channel-button";
 import AiPanelButton from "@/components/sidebar/ai-panel-button";
@@ -29,15 +28,31 @@ export default function AppSidebar({
   channels: Channel[];
 }) {
   const params = useParams();
+  const router = useRouter();
   const activeChannel = params.channel as string;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<
     "profile" | "workspace"
   >("profile");
+  const [isPending, startTransition] = useTransition();
+  const [pendingChannel, setPendingChannel] = useState<string | null>(null);
 
   function openSettings(section: "profile" | "workspace") {
     setSettingsSection(section);
     setSettingsOpen(true);
+  }
+
+  function handleChannelClick(e: React.MouseEvent, channelName: string) {
+    e.preventDefault();
+    if (channelName === activeChannel) return;
+    setPendingChannel(channelName);
+    startTransition(() => {
+      router.push(`/${workspaceSlug}/${channelName}`);
+    });
+  }
+
+  function handleChannelHover(channelName: string) {
+    router.prefetch(`/${workspaceSlug}/${channelName}`);
   }
 
   return (
@@ -55,22 +70,33 @@ export default function AppSidebar({
         <div className="flex-1 overflow-y-auto flex flex-col">
           {channels.map((channel) => {
             const isActive = activeChannel === channel.name;
+            const isLoading = isPending && pendingChannel === channel.name;
+
             return (
-              <Link
+              <a
                 key={channel.id}
                 href={`/${workspaceSlug}/${channel.name}`}
                 title={`#${channel.name}`}
-                className={`relative w-full h-10 flex items-center justify-center text-[11px] font-medium border-b border-zinc-800/40 transition-colors ${
+                onClick={(e) => handleChannelClick(e, channel.name)}
+                onMouseEnter={() => handleChannelHover(channel.name)}
+                className={`relative w-full h-10 flex items-center justify-center text-[11px] font-medium border-b border-zinc-800/40 transition-colors select-none cursor-pointer ${
                   isActive
                     ? "bg-zinc-900/60 text-zinc-100"
-                    : "text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/30"
+                    : isLoading
+                      ? "bg-zinc-900/40 text-zinc-300"
+                      : "text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/30"
                 }`}
               >
+                {/* Active indicator */}
                 {isActive && (
                   <span className="absolute left-0 top-0 bottom-0 w-px bg-white" />
                 )}
+                {/* Loading indicator */}
+                {isLoading && !isActive && (
+                  <span className="absolute left-0 top-0 bottom-0 w-px bg-zinc-600 animate-pulse" />
+                )}
                 {channel.name[0].toUpperCase()}
-              </Link>
+              </a>
             );
           })}
           <CreateChannelButton

@@ -11,6 +11,7 @@ import ReactionButton from "@/components/chat/reaction-button";
 import MessageContextMenu from "@/components/chat/message-context-menu";
 import { usePresenceStore } from "@/stores/presence-store";
 import { usePendingMessages } from "@/stores/pending-messages-store";
+import { useProfileCache } from "@/stores/profile-cache-store";
 import { MessageSquare } from "lucide-react";
 
 const supabase = createClient();
@@ -85,6 +86,16 @@ export default function MessageFeed({
   const { setReplyTo } = useReplyStore();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
   const { pending } = usePendingMessages();
+  const { seedProfiles, fetchProfile } = useProfileCache();
+
+  // Seed cache with profiles already present in initial messages
+  useEffect(() => {
+    const profiles = initialMessages
+      .map((m) => m.profiles)
+      .filter((p): p is Profile => p !== null);
+    if (profiles.length) seedProfiles(profiles);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleReply(message: Message) {
     const username =
@@ -190,11 +201,8 @@ export default function MessageFeed({
         async (payload) => {
           if (payload.new.thread_id) return;
 
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("id, username, display_name, avatar_url")
-            .eq("id", payload.new.user_id)
-            .single();
+          // Use cache — only fetches if this user_id is new
+          const profile = await fetchProfile(payload.new.user_id);
 
           setMessages((prev) => {
             if (prev.some((m) => m.id === payload.new.id)) return prev;
@@ -214,7 +222,7 @@ export default function MessageFeed({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channelId]);
+  }, [channelId, fetchProfile]);
 
   useEffect(() => {
     const channel = supabase
@@ -318,7 +326,6 @@ export default function MessageFeed({
         </div>
       )}
 
-      {/* Confirmed messages */}
       {topLevelMessages.map((message, index) => {
         const grouped = isGrouped(topLevelMessages, index);
         if (message.is_ai)
@@ -423,7 +430,6 @@ export default function MessageFeed({
 
       <div ref={bottomRef} />
 
-      {/* Context menu */}
       {contextMenu && (
         <MessageContextMenu
           x={contextMenu.x}
