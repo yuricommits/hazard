@@ -95,14 +95,12 @@ export default function ThreadPanel() {
       if (!threadId) return;
       useThreadStore.getState().setThreadId(threadId);
     }
-    await supabase
-      .from("messages")
-      .insert({
-        channel_id: parentMessage.channel_id,
-        user_id: user.id,
-        content: reply.trim(),
-        thread_id: threadId,
-      });
+    await supabase.from("messages").insert({
+      channel_id: parentMessage.channel_id,
+      user_id: user.id,
+      content: reply.trim(),
+      thread_id: threadId,
+    });
     setReply("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setSending(false);
@@ -193,9 +191,6 @@ export default function ThreadPanel() {
           {/* Composer */}
           <div className="border-t border-zinc-800 shrink-0">
             <div className="flex items-center gap-3 px-4 py-3">
-              <div className="shrink-0 relative flex items-center justify-center w-5 h-5">
-                <div className="w-2 h-2 bg-white rotate-45 shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
-              </div>
               <textarea
                 ref={textareaRef}
                 value={reply}

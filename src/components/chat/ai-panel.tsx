@@ -294,10 +294,6 @@ export default function AiPanel({
           {/* Input */}
           <div className="border-t border-zinc-800 shrink-0">
             <div className="flex items-center gap-3 px-4 py-3">
-              {/* Diamond mark */}
-              <div className="shrink-0 relative flex items-center justify-center w-5 h-5">
-                <div className="w-2.5 h-2.5 bg-white rotate-45 shadow-[0_0_8px_rgba(255,255,255,0.6)]" />
-              </div>
               <textarea
                 ref={textareaRef}
                 value={input}

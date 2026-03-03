@@ -83,7 +83,7 @@ export default function AppSidebar({
         {/* Bottom */}
         <div className="border-t border-zinc-800 flex flex-col">
           <div className="border-b border-zinc-800/60">
-            <AiPanelButton collapsed />
+            <AiPanelButton />
           </div>
 
           <button

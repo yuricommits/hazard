@@ -107,15 +107,13 @@ export default function MessageComposer({
       if (done) break;
       fullContent += decoder.decode(value, { stream: true });
     }
-    await supabase
-      .from("messages")
-      .insert({
-        channel_id: channelId,
-        user_id: currentUserId,
-        content: fullContent,
-        is_ai: true,
-        parent_message_id: userMessage?.id ?? null,
-      });
+    await supabase.from("messages").insert({
+      channel_id: channelId,
+      user_id: currentUserId,
+      content: fullContent,
+      is_ai: true,
+      parent_message_id: userMessage?.id ?? null,
+    });
   }
 
   async function sendMessage() {
@@ -132,13 +130,11 @@ export default function MessageComposer({
     if (text.toLowerCase().startsWith("@hazard")) {
       await sendAiMessage(text.slice(7).trim());
     } else {
-      await supabase
-        .from("messages")
-        .insert({
-          channel_id: channelId,
-          user_id: currentUserId,
-          content: text,
-        });
+      await supabase.from("messages").insert({
+        channel_id: channelId,
+        user_id: currentUserId,
+        content: text,
+      });
     }
     setSending(false);
   }
@@ -195,15 +191,10 @@ export default function MessageComposer({
 
       {/* Input row */}
       <div className="flex items-center gap-3 px-4 py-3">
-        {/* Diamond logo mark */}
-        <div className="shrink-0 relative flex items-center justify-center w-5 h-5">
-          <div className="w-2.5 h-2.5 bg-white rotate-45 shadow-[0_0_8px_rgba(255,255,255,0.6)]" />
-        </div>
-
         {/* Textarea */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative flex items-center">
           {message === "" && (
-            <div className="absolute inset-0 pointer-events-none text-sm leading-normal select-none py-px">
+            <div className="absolute inset-0 pointer-events-none text-sm leading-normal select-none flex items-center">
               <span className="text-zinc-700">Message #{channelName} · </span>
               <span className="text-zinc-600">@hazard</span>
               <span className="text-zinc-700"> to ask AI</span>
@@ -215,7 +206,7 @@ export default function MessageComposer({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             rows={1}
-            className="relative w-full bg-transparent text-sm text-zinc-100 resize-none outline-none max-h-48 overflow-y-auto"
+            className="relative w-full bg-transparent text-sm text-zinc-100 resize-none outline-none max-h-48 overflow-y-auto py-px"
           />
         </div>
 
