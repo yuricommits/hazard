@@ -17,13 +17,7 @@ type Profile = {
   display_name: string | null;
   avatar_url: string | null;
 };
-
-type Reaction = {
-  id: string;
-  emoji: string;
-  user_id: string;
-};
-
+type Reaction = { id: string; emoji: string; user_id: string };
 type Message = {
   id: string;
   content: string;
@@ -46,9 +40,10 @@ function isGrouped(messages: Message[], index: number): boolean {
   const curr = messages[index];
   if (prev.user_id !== curr.user_id) return false;
   if (prev.is_ai || curr.is_ai) return false;
-  const diff =
-    new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime();
-  return diff < 5 * 60 * 1000;
+  return (
+    new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime() <
+    5 * 60 * 1000
+  );
 }
 
 function truncate(text: string, max = 80) {
@@ -74,6 +69,8 @@ export default function MessageFeed({
   const { setReplyTo } = useReplyStore();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
 
+  // Register self as online
+
   function handleReply(message: Message) {
     const username =
       message.profiles?.display_name ?? message.profiles?.username ?? "Unknown";
@@ -82,10 +79,6 @@ export default function MessageFeed({
       content: truncate(message.content),
       username,
     });
-  }
-
-  function handleCreateThread(messageId: string) {
-    openThread(null, messageId);
   }
 
   async function handleViewThread(messageId: string) {
@@ -97,7 +90,6 @@ export default function MessageFeed({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "instant" });
   }, []);
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -211,15 +203,16 @@ export default function MessageFeed({
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "reactions" },
         async (payload) => {
-          const messageId = payload.new.message_id;
           const { data } = await supabase
             .from("reactions")
             .select("id, emoji, user_id")
-            .eq("message_id", messageId);
+            .eq("message_id", payload.new.message_id);
           if (!data) return;
           setMessages((prev) =>
             prev.map((msg) =>
-              msg.id === messageId ? { ...msg, reactions: data } : msg,
+              msg.id === payload.new.message_id
+                ? { ...msg, reactions: data }
+                : msg,
             ),
           );
         },
@@ -228,17 +221,18 @@ export default function MessageFeed({
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "reactions" },
         (payload) => {
-          const deletedId = payload.old.id;
           setMessages((prev) => {
             const messageId = prev.find((msg) =>
-              msg.reactions.some((r) => r.id === deletedId),
+              msg.reactions.some((r) => r.id === payload.old.id),
             )?.id;
             if (!messageId) return prev;
             return prev.map((msg) =>
               msg.id === messageId
                 ? {
                     ...msg,
-                    reactions: msg.reactions.filter((r) => r.id !== deletedId),
+                    reactions: msg.reactions.filter(
+                      (r) => r.id !== payload.old.id,
+                    ),
                   }
                 : msg,
             );
@@ -272,30 +266,30 @@ export default function MessageFeed({
         const grouped = isGrouped(topLevelMessages, index);
         if (message.is_ai)
           return <AiMessage key={message.id} content={message.content} />;
-
         const aiResponse = aiResponseMap[message.id];
         const hasThread = message.replyCount > 0;
+        const isOnline = onlineUserIds.has(message.user_id);
 
         return (
           <div
             key={message.id}
-            className="flex flex-col border-b border-zinc-800/40"
+            className="flex flex-col border-b border-zinc-800/20"
           >
             <div
               className={`flex items-start gap-3 px-4 hover:bg-zinc-900/20 group relative ${grouped ? "py-0.5" : "pt-3 pb-1"}`}
             >
               {/* Hover actions */}
-              <div className="absolute right-0 top-0 hidden group-hover:flex items-center border-l border-b border-zinc-800 bg-black z-10">
+              <div className="absolute right-0 top-0 hidden group-hover:flex items-center border-l border-b border-zinc-800/40 bg-black z-10">
                 <button
                   onClick={() => handleReply(message)}
-                  className="flex items-center gap-1.5 h-8 px-3 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 transition-colors border-r border-zinc-800"
+                  className="flex items-center gap-1.5 h-8 px-3 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 transition-colors border-r border-zinc-800/40"
                 >
                   <CornerUpLeft size={11} strokeWidth={2} />
                   Reply
                 </button>
                 {!hasThread && (
                   <button
-                    onClick={() => handleCreateThread(message.id)}
+                    onClick={() => openThread(null, message.id)}
                     className="flex items-center gap-1.5 h-8 px-3 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 transition-colors"
                   >
                     <MessageSquare size={11} strokeWidth={2} />
@@ -316,10 +310,10 @@ export default function MessageFeed({
                 </div>
               ) : (
                 <div className="relative shrink-0 mt-0.5">
-                  <div className="w-8 h-8 border border-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">
+                  <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">
                     {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
                   </div>
-                  {onlineUserIds.has(message.user_id) && (
+                  {isOnline && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-black" />
                   )}
                 </div>
@@ -341,19 +335,16 @@ export default function MessageFeed({
                     </span>
                   </div>
                 )}
-
                 <MessageContent content={message.content} />
-
                 <ReactionButton
                   messageId={message.id}
                   reactions={message.reactions ?? []}
                   currentUserId={currentUserId}
                 />
-
                 {hasThread && (
                   <button
                     onClick={() => handleViewThread(message.id)}
-                    className="mt-1.5 flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors w-fit border border-zinc-800 px-2 py-1 hover:border-zinc-700"
+                    className="mt-1.5 flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors w-fit border border-zinc-800/60 px-2 py-1 hover:border-zinc-700"
                   >
                     <MessageSquare size={11} strokeWidth={1.5} />
                     {message.replyCount}{" "}
@@ -364,7 +355,7 @@ export default function MessageFeed({
             </div>
 
             {aiResponse && (
-              <div className="ml-11 pl-4 border-l-2 border-zinc-800 mx-4 my-1">
+              <div className="ml-11 pl-4 border-l-2 border-zinc-800/40 mx-4 my-1">
                 <AiMessage content={aiResponse.content} />
               </div>
             )}

@@ -24,9 +24,11 @@ type Input = z.infer<typeof schema>;
 export default function CreateChannelButton({
   workspaceId,
   workspaceSlug,
+  iconOnly = false,
 }: {
   workspaceId: string;
   workspaceSlug: string;
+  iconOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -73,10 +75,15 @@ export default function CreateChannelButton({
       <button
         suppressHydrationWarning
         onClick={() => setOpen(true)}
-        className="w-full flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
+        title="Add channel"
+        className={
+          iconOnly
+            ? "w-full h-10 flex items-center justify-center text-zinc-700 hover:text-zinc-400 hover:bg-zinc-900/30 transition-colors border-b border-zinc-800/40"
+            : "w-full flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
+        }
       >
         <Plus size={12} />
-        <span>Add channel</span>
+        {!iconOnly && <span>Add channel</span>}
       </button>
 
       <AnimatePresence>

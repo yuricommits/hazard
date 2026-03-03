@@ -5,12 +5,9 @@ import { useAiPanelStore } from "@/stores/ai-panel-store";
 import { createClient } from "@/lib/supabase/client";
 import MessageContent from "@/components/chat/message-content";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Hash, ArrowUp, Paperclip, RotateCcw } from "lucide-react";
+import { X, Hash, ArrowUp, RotateCcw } from "lucide-react";
 
 const supabase = createClient();
-const MIN_WIDTH = 260;
-const MAX_WIDTH = 520;
-const DEFAULT_WIDTH = 320;
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
 
@@ -34,14 +31,8 @@ export default function AiPanel({
   const [isStreaming, setIsStreaming] = useState(false);
   const [useContext, setUseContext] = useState(true);
   const [streamingContent, setStreamingContent] = useState("");
-  const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
-  const [isDragging, setIsDragging] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const dragStartX = useRef(0);
-  const dragStartWidth = useRef(DEFAULT_WIDTH);
-  const handleMouseMove = useRef<(e: MouseEvent) => void>(() => {});
-  const handleMouseUp = useRef<(e: MouseEvent) => void>(() => {});
 
   useEffect(() => {
     async function loadHistory() {
@@ -59,35 +50,6 @@ export default function AiPanel({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingContent]);
-
-  function onDragHandleMouseDown(e: React.MouseEvent) {
-    e.preventDefault();
-    dragStartX.current = e.clientX;
-    dragStartWidth.current = panelWidth;
-    setIsDragging(true);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    handleMouseMove.current = (ev: MouseEvent) => {
-      setPanelWidth(
-        Math.min(
-          MAX_WIDTH,
-          Math.max(
-            MIN_WIDTH,
-            dragStartWidth.current + (dragStartX.current - ev.clientX),
-          ),
-        ),
-      );
-    };
-    handleMouseUp.current = () => {
-      setIsDragging(false);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", handleMouseMove.current);
-      window.removeEventListener("mouseup", handleMouseUp.current);
-    };
-    window.addEventListener("mousemove", handleMouseMove.current);
-    window.addEventListener("mouseup", handleMouseUp.current);
-  }
 
   async function getChannelContext(): Promise<string> {
     if (!channelId || !useContext) return "";
@@ -191,24 +153,11 @@ export default function AiPanel({
       {isOpen && (
         <motion.aside
           initial={{ width: 0, opacity: 0 }}
-          animate={{ width: panelWidth, opacity: 1 }}
+          animate={{ width: 340, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
-          transition={
-            isDragging
-              ? { duration: 0 }
-              : { type: "spring", stiffness: 300, damping: 30 }
-          }
-          className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden relative bg-black"
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden bg-black"
         >
-          <div
-            onMouseDown={onDragHandleMouseDown}
-            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 group"
-          >
-            <div
-              className={`absolute left-0 top-0 bottom-0 w-px transition-colors duration-150 ${isDragging ? "bg-zinc-600" : "bg-transparent group-hover:bg-zinc-700"}`}
-            />
-          </div>
-
           {/* Header */}
           <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-3 shrink-0">
             <button
@@ -342,8 +291,13 @@ export default function AiPanel({
           </div>
 
           {/* Input */}
+          {/* Input */}
           <div className="border-t border-zinc-800 shrink-0">
-            <div className="px-4 py-3">
+            <div className="flex items-center gap-3 px-4 py-3">
+              {/* Diamond mark */}
+              <div className="shrink-0 relative flex items-center justify-center w-5 h-5">
+                <div className="w-2.5 h-2.5 bg-white rotate-45 shadow-[0_0_8px_rgba(255,255,255,0.6)]" />
+              </div>
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -356,23 +310,12 @@ export default function AiPanel({
                 placeholder="Send a message..."
                 rows={1}
                 disabled={isStreaming}
-                className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-700 resize-none outline-none max-h-32 overflow-y-auto disabled:opacity-50"
+                className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-700 resize-none outline-none max-h-32 overflow-y-auto disabled:opacity-50"
               />
-            </div>
-            <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-800">
-              <div className="flex items-center gap-2">
-                <button className="text-zinc-700 hover:text-zinc-500 transition-colors">
-                  <Paperclip size={13} />
-                </button>
-                <span className="text-[11px] text-zinc-700 flex items-center gap-1.5">
-                  <span className="w-2 h-2 bg-linear-to-br from-violet-500 to-cyan-400 inline-block" />
-                  Hazard AI
-                </span>
-              </div>
               <button
                 onClick={() => sendMessage()}
                 disabled={!input.trim() || isStreaming}
-                className="w-7 h-7 flex items-center justify-center border border-zinc-700 hover:border-zinc-500 bg-white hover:bg-zinc-100 disabled:bg-transparent disabled:border-zinc-800 disabled:text-zinc-700 text-black transition-colors"
+                className="shrink-0 w-7 h-7 flex items-center justify-center border border-zinc-700 hover:border-zinc-500 bg-white hover:bg-zinc-100 disabled:bg-transparent disabled:border-zinc-800 disabled:text-zinc-700 text-black transition-colors"
               >
                 <ArrowUp size={14} strokeWidth={2.5} />
               </button>

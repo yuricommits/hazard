@@ -87,7 +87,6 @@ export default function MessageComposer({
       })
       .select("id")
       .single();
-    const parentMessageId = userMessage?.id ?? null;
     broadcastHazardThinking(true);
     const channelContext = await getChannelContext();
     const response = await fetch("/api/ai", {
@@ -115,7 +114,7 @@ export default function MessageComposer({
         user_id: currentUserId,
         content: fullContent,
         is_ai: true,
-        parent_message_id: parentMessageId,
+        parent_message_id: userMessage?.id ?? null,
       });
   }
 
@@ -169,7 +168,7 @@ export default function MessageComposer({
     <div className="shrink-0 border-t border-zinc-800">
       {/* Reply bar */}
       {replyTo && (
-        <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-zinc-800 bg-zinc-900/20">
+        <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-zinc-800/60 bg-zinc-900/20">
           <div className="flex items-center gap-2 min-w-0">
             <CornerUpLeft size={11} className="text-zinc-500 shrink-0" />
             <span className="text-[11px] text-zinc-500 shrink-0">
@@ -194,11 +193,17 @@ export default function MessageComposer({
         </div>
       )}
 
-      {/* Textarea */}
-      <div className="px-4 py-3">
-        <div className="relative">
+      {/* Input row */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        {/* Diamond logo mark */}
+        <div className="shrink-0 relative flex items-center justify-center w-5 h-5">
+          <div className="w-2.5 h-2.5 bg-white rotate-45 shadow-[0_0_8px_rgba(255,255,255,0.6)]" />
+        </div>
+
+        {/* Textarea */}
+        <div className="flex-1 relative">
           {message === "" && (
-            <div className="absolute inset-0 pointer-events-none text-sm leading-normal select-none py-2">
+            <div className="absolute inset-0 pointer-events-none text-sm leading-normal select-none py-px">
               <span className="text-zinc-700">Message #{channelName} · </span>
               <span className="text-zinc-600">@hazard</span>
               <span className="text-zinc-700"> to ask AI</span>
@@ -210,21 +215,15 @@ export default function MessageComposer({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             rows={1}
-            className="relative w-full bg-transparent text-sm text-zinc-100 resize-none outline-none max-h-48 overflow-y-auto py-2"
+            className="relative w-full bg-transparent text-sm text-zinc-100 resize-none outline-none max-h-48 overflow-y-auto"
           />
         </div>
-      </div>
 
-      {/* Bottom bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-800">
-        <p className="text-[10px] text-zinc-700">
-          Enter to send · Shift+Enter for new line
-          {replyTo && " · Esc to cancel"}
-        </p>
+        {/* Send */}
         <button
           onClick={sendMessage}
           disabled={!message.trim() || sending}
-          className="w-7 h-7 flex items-center justify-center border border-zinc-700 hover:border-zinc-500 bg-white hover:bg-zinc-100 disabled:bg-transparent disabled:border-zinc-800 disabled:text-zinc-700 text-black transition-colors"
+          className="shrink-0 w-7 h-7 flex items-center justify-center border border-zinc-700 hover:border-zinc-500 bg-white hover:bg-zinc-100 disabled:bg-transparent disabled:border-zinc-800 disabled:text-zinc-700 text-black transition-colors"
         >
           <ArrowUp size={14} strokeWidth={2.5} />
         </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMembersPanelStore } from "@/stores/members-panel-store";
+import { Users } from "lucide-react";
 
 export default function MembersPanelButton() {
   const { toggleMembers, isOpen } = useMembersPanelStore();
@@ -8,13 +9,14 @@ export default function MembersPanelButton() {
   return (
     <button
       onClick={toggleMembers}
-      className={`text-xs px-2 py-1 rounded hover:bg-zinc-800 transition-colors ${
+      title="Members"
+      className={`w-full h-full flex items-center justify-center transition-colors ${
         isOpen
-          ? "text-zinc-200 bg-zinc-800"
-          : "text-zinc-500 hover:text-zinc-300"
+          ? "text-zinc-200 bg-zinc-900/40"
+          : "text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/30"
       }`}
     >
-      Members
+      <Users size={13} strokeWidth={1.75} />
     </button>
   );
 }

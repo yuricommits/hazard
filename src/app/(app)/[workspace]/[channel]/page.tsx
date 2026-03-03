@@ -63,14 +63,19 @@ export default async function ChannelPage({
           <span className="text-zinc-700 text-sm">#</span>
           <h1 className="text-sm font-medium text-zinc-100">{channel.name}</h1>
         </div>
-        <div className="flex items-center divide-x divide-zinc-800 border-l border-zinc-800">
-          <div className="px-3">
+
+        {/* Right actions — equal-width icon cells */}
+        <div className="flex items-stretch h-full border-l border-zinc-800">
+          <div className="w-12 flex items-center justify-center border-r border-zinc-800">
             <ThreadsButton channelId={channel.id} />
           </div>
-          <button className="flex items-center gap-1.5 px-3 h-12 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30 transition-colors">
+          <button
+            title="Search"
+            className="w-12 flex items-center justify-center text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/30 transition-colors border-r border-zinc-800"
+          >
             <svg
-              width="12"
-              height="12"
+              width="13"
+              height="13"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -81,9 +86,8 @@ export default async function ChannelPage({
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-            Search
           </button>
-          <div className="px-3">
+          <div className="w-12 flex items-center justify-center">
             <MembersPanelButton />
           </div>
         </div>

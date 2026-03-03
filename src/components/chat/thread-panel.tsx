@@ -9,9 +9,6 @@ import { getOrCreateThread } from "@/lib/supabase/threads";
 import { X, MessageSquare, ArrowUp } from "lucide-react";
 
 const supabase = createClient();
-const MIN_WIDTH = 240;
-const MAX_WIDTH = 520;
-const DEFAULT_WIDTH = 288;
 
 type Profile = {
   id: string;
@@ -33,14 +30,8 @@ export default function ThreadPanel() {
   const [replies, setReplies] = useState<Message[]>([]);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
-  const [isDragging, setIsDragging] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const dragStartX = useRef(0);
-  const dragStartWidth = useRef(DEFAULT_WIDTH);
-  const handleMouseMove = useRef<(e: MouseEvent) => void>(() => {});
-  const handleMouseUp = useRef<(e: MouseEvent) => void>(() => {});
 
   useEffect(() => {
     if (!openThreadId) return;
@@ -85,33 +76,6 @@ export default function ThreadPanel() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [replies]);
 
-  function onDragHandleMouseDown(e: React.MouseEvent) {
-    e.preventDefault();
-    dragStartX.current = e.clientX;
-    dragStartWidth.current = panelWidth;
-    setIsDragging(true);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    handleMouseMove.current = (ev: MouseEvent) => {
-      const delta = dragStartX.current - ev.clientX;
-      setPanelWidth(
-        Math.min(
-          MAX_WIDTH,
-          Math.max(MIN_WIDTH, dragStartWidth.current + delta),
-        ),
-      );
-    };
-    handleMouseUp.current = () => {
-      setIsDragging(false);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", handleMouseMove.current);
-      window.removeEventListener("mouseup", handleMouseUp.current);
-    };
-    window.addEventListener("mousemove", handleMouseMove.current);
-    window.addEventListener("mouseup", handleMouseUp.current);
-  }
-
   async function sendReply() {
     if (!reply.trim() || sending || !openMessageId) return;
     setSending(true);
@@ -154,27 +118,14 @@ export default function ThreadPanel() {
   return (
     <motion.aside
       animate={{
-        width: openMessageId ? panelWidth : 0,
+        width: openMessageId ? 300 : 0,
         opacity: openMessageId ? 1 : 0,
       }}
-      transition={
-        isDragging
-          ? { duration: 0 }
-          : { type: "spring", stiffness: 300, damping: 30 }
-      }
-      className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden relative bg-black"
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="border-l border-zinc-800 flex flex-col shrink-0 overflow-hidden bg-black"
     >
       {openMessageId && (
         <>
-          <div
-            onMouseDown={onDragHandleMouseDown}
-            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 group"
-          >
-            <div
-              className={`absolute left-0 top-0 bottom-0 w-px transition-colors duration-150 ${isDragging ? "bg-zinc-600" : "bg-transparent group-hover:bg-zinc-700"}`}
-            />
-          </div>
-
           {/* Header */}
           <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
             <div className="flex items-center gap-2">
@@ -213,9 +164,9 @@ export default function ThreadPanel() {
             {replies.map((r) => (
               <div
                 key={r.id}
-                className="flex items-start gap-2.5 px-4 py-3 border-b border-zinc-800/40 hover:bg-zinc-900/20 transition-colors"
+                className="flex items-start gap-2.5 px-4 py-3 border-b border-zinc-800/20 hover:bg-zinc-900/20 transition-colors"
               >
-                <div className="w-7 h-7 border border-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
+                <div className="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0 text-xs font-medium text-zinc-400">
                   {r.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
@@ -241,7 +192,10 @@ export default function ThreadPanel() {
 
           {/* Composer */}
           <div className="border-t border-zinc-800 shrink-0">
-            <div className="px-4 py-3">
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="shrink-0 relative flex items-center justify-center w-5 h-5">
+                <div className="w-2 h-2 bg-white rotate-45 shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
+              </div>
               <textarea
                 ref={textareaRef}
                 value={reply}
@@ -253,17 +207,12 @@ export default function ThreadPanel() {
                 onKeyDown={handleKeyDown}
                 placeholder="Reply..."
                 rows={1}
-                className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-700 resize-none outline-none max-h-32 overflow-y-auto"
+                className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-700 resize-none outline-none max-h-32 overflow-y-auto"
               />
-            </div>
-            <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-800">
-              <p className="text-[10px] text-zinc-700">
-                Enter to reply · Shift+Enter for new line
-              </p>
               <button
                 onClick={sendReply}
                 disabled={!reply.trim() || sending}
-                className="w-7 h-7 flex items-center justify-center border border-zinc-700 hover:border-zinc-500 bg-white hover:bg-zinc-100 disabled:bg-transparent disabled:border-zinc-800 disabled:text-zinc-700 text-black transition-colors"
+                className="shrink-0 w-7 h-7 flex items-center justify-center border border-zinc-700 hover:border-zinc-500 bg-white hover:bg-zinc-100 disabled:bg-transparent disabled:border-zinc-800 disabled:text-zinc-700 text-black transition-colors"
               >
                 <ArrowUp size={14} strokeWidth={2.5} />
               </button>

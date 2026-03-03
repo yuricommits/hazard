@@ -6,11 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 
 const supabase = createClient();
 
-type Reaction = {
-  id: string;
-  emoji: string;
-  user_id: string;
-};
+type Reaction = { id: string; emoji: string; user_id: string };
 
 export default function ReactionButton({
   messageId,
@@ -49,8 +45,6 @@ export default function ReactionButton({
     {},
   );
 
-  const hasReactions = Object.keys(grouped).length > 0;
-
   async function handleReaction(emoji: string) {
     const existing = reactions.find(
       (r) => r.emoji === emoji && r.user_id === currentUserId,
@@ -76,55 +70,30 @@ export default function ReactionButton({
     await handleReaction(emojiData.emoji);
   }
 
-  if (!hasReactions && !showPicker) {
-    return (
-      <div className="relative">
-        <div className="h-0 overflow-hidden group-hover:h-6 transition-all duration-150">
-          <button
-            onClick={() => setShowPicker(true)}
-            className="mt-0.5 px-2 py-0.5 rounded-full text-xs border border-zinc-800 text-zinc-600 hover:text-zinc-300 hover:border-zinc-600 transition-colors"
-          >
-            +
-          </button>
-        </div>
-        {showPicker && (
-          <div ref={pickerRef} className="absolute bottom-8 left-0 z-50">
-            <EmojiPicker
-              theme={Theme.DARK}
-              onEmojiClick={handleEmojiClick}
-              height={350}
-              width={300}
-            />
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="relative">
-      <div className="flex items-center gap-1 flex-wrap mt-1">
-        {Object.entries(grouped).map(([emoji, { count, hasReacted }]) => (
-          <button
-            key={emoji}
-            onClick={() => handleReaction(emoji)}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
-              hasReacted
-                ? "bg-zinc-800 border-zinc-600 text-zinc-200"
-                : "bg-transparent border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-            }`}
-          >
-            <span>{emoji}</span>
-            <span className="text-[10px]">{count}</span>
-          </button>
-        ))}
+    <div className="relative flex items-center gap-1 flex-wrap mt-1">
+      {Object.entries(grouped).map(([emoji, { count, hasReacted }]) => (
         <button
-          onClick={() => setShowPicker((prev) => !prev)}
-          className="max-w-0 group-hover:max-w-8 overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-full text-xs border border-transparent group-hover:border-zinc-800 text-zinc-600 hover:text-zinc-300 hover:border-zinc-600 whitespace-nowrap px-2 py-0.5"
+          key={emoji}
+          onClick={() => handleReaction(emoji)}
+          className={`flex items-center gap-1 px-2 py-0.5 text-xs border transition-colors ${
+            hasReacted
+              ? "border-zinc-600 text-zinc-200 bg-zinc-900/40"
+              : "border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+          }`}
         >
-          +
+          <span>{emoji}</span>
+          <span className="text-[10px]">{count}</span>
         </button>
-      </div>
+      ))}
+
+      {/* Always-visible add button */}
+      <button
+        onClick={() => setShowPicker((prev) => !prev)}
+        className="flex items-center justify-center w-6 h-5 text-zinc-700 hover:text-zinc-400 border border-zinc-800/60 hover:border-zinc-700 transition-colors text-xs"
+      >
+        +
+      </button>
 
       {showPicker && (
         <div ref={pickerRef} className="absolute bottom-8 left-0 z-50">
