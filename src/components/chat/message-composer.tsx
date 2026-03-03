@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useReplyStore } from "@/stores/reply-store";
+import { usePendingMessages } from "@/stores/pending-messages-store";
 import { CornerUpLeft, X, ArrowUp } from "lucide-react";
 
 const supabase = createClient();
@@ -12,11 +13,13 @@ export default function MessageComposer({
   channelName,
   currentUserId,
   currentUserName,
+  displayName,
 }: {
   channelId: string;
   channelName: string;
   currentUserId: string;
   currentUserName: string;
+  displayName?: string | null;
 }) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -26,6 +29,7 @@ export default function MessageComposer({
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { replyTo, clearReplyTo } = useReplyStore();
+  const { addPending } = usePendingMessages();
 
   useEffect(() => {
     if (replyTo) setTimeout(() => textareaRef.current?.focus(), 0);
@@ -77,16 +81,7 @@ export default function MessageComposer({
       .join("\n");
   }
 
-  async function sendAiMessage(prompt: string) {
-    const { data: userMessage } = await supabase
-      .from("messages")
-      .insert({
-        channel_id: channelId,
-        user_id: currentUserId,
-        content: message.trim(),
-      })
-      .select("id")
-      .single();
+  async function sendAiMessage(prompt: string, parentId: string | null) {
     broadcastHazardThinking(true);
     const channelContext = await getChannelContext();
     const response = await fetch("/api/ai", {
@@ -107,35 +102,64 @@ export default function MessageComposer({
       if (done) break;
       fullContent += decoder.decode(value, { stream: true });
     }
-    await supabase.from("messages").insert({
-      channel_id: channelId,
-      user_id: currentUserId,
-      content: fullContent,
-      is_ai: true,
-      parent_message_id: userMessage?.id ?? null,
-    });
+    await supabase
+      .from("messages")
+      .insert({
+        channel_id: channelId,
+        user_id: currentUserId,
+        content: fullContent,
+        is_ai: true,
+        parent_message_id: parentId,
+      });
   }
 
   async function sendMessage() {
     if (!message.trim() || sending) return;
     broadcastTyping(false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    setSending(true);
+
     const text = replyTo
       ? `@${replyTo.username} ${message.trim()}`
       : message.trim();
+    const tempId = crypto.randomUUID();
+
+    // Optimistic — show instantly
+    addPending({
+      tempId,
+      content: text,
+      userId: currentUserId,
+      channelId,
+      createdAt: new Date().toISOString(),
+      displayName: displayName ?? null,
+      username: currentUserName,
+    });
+
     setMessage("");
     clearReplyTo();
     if (textareaRef.current) textareaRef.current.style.height = "auto";
+    setSending(true);
+
     if (text.toLowerCase().startsWith("@hazard")) {
-      await sendAiMessage(text.slice(7).trim());
+      const { data: userMsg } = await supabase
+        .from("messages")
+        .insert({
+          channel_id: channelId,
+          user_id: currentUserId,
+          content: text,
+        })
+        .select("id")
+        .single();
+      await sendAiMessage(text.slice(7).trim(), userMsg?.id ?? null);
     } else {
-      await supabase.from("messages").insert({
-        channel_id: channelId,
-        user_id: currentUserId,
-        content: text,
-      });
+      await supabase
+        .from("messages")
+        .insert({
+          channel_id: channelId,
+          user_id: currentUserId,
+          content: text,
+        });
     }
+
     setSending(false);
   }
 
@@ -162,7 +186,6 @@ export default function MessageComposer({
 
   return (
     <div className="shrink-0 border-t border-zinc-800">
-      {/* Reply bar */}
       {replyTo && (
         <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-zinc-800/60 bg-zinc-900/20">
           <div className="flex items-center gap-2 min-w-0">
@@ -189,9 +212,7 @@ export default function MessageComposer({
         </div>
       )}
 
-      {/* Input row */}
       <div className="flex items-center gap-3 px-4 py-3">
-        {/* Textarea */}
         <div className="flex-1 relative flex items-center">
           {message === "" && (
             <div className="absolute inset-0 pointer-events-none text-sm leading-normal select-none flex items-center">
@@ -206,11 +227,9 @@ export default function MessageComposer({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             rows={1}
-            className="relative w-full bg-transparent text-sm text-zinc-100 resize-none outline-none max-h-48 overflow-y-auto py-px"
+            className="relative w-full bg-transparent text-sm text-zinc-100 resize-none outline-none max-h-48 overflow-y-auto"
           />
         </div>
-
-        {/* Send */}
         <button
           onClick={sendMessage}
           disabled={!message.trim() || sending}

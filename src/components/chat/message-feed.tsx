@@ -9,6 +9,7 @@ import { useReplyStore } from "@/stores/reply-store";
 import { getOrCreateThread } from "@/lib/supabase/threads";
 import ReactionButton from "@/components/chat/reaction-button";
 import { usePresenceStore } from "@/stores/presence-store";
+import { usePendingMessages } from "@/stores/pending-messages-store";
 import { CornerUpLeft, MessageSquare } from "lucide-react";
 
 type Profile = {
@@ -17,7 +18,13 @@ type Profile = {
   display_name: string | null;
   avatar_url: string | null;
 };
-type Reaction = { id: string; emoji: string; user_id: string };
+
+type Reaction = {
+  id: string;
+  emoji: string;
+  user_id: string;
+};
+
 type Message = {
   id: string;
   content: string;
@@ -64,12 +71,14 @@ export default function MessageFeed({
   const [messages, setMessages] = useState<Message[]>(
     initialMessages.map((m) => ({ ...m, replyCount: 0 })),
   );
+  // Track which tempIds are fading out
+  const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const { openThread } = useThreadStore();
   const { setReplyTo } = useReplyStore();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
-
-  // Register self as online
+  const { pending, removePending } = usePendingMessages();
 
   function handleReply(message: Message) {
     const username =
@@ -92,7 +101,7 @@ export default function MessageFeed({
   }, []);
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, pending]);
 
   useEffect(() => {
     async function fetchReplyCounts() {
@@ -139,27 +148,56 @@ export default function MessageFeed({
         },
         async (payload) => {
           if (payload.new.thread_id) return;
+
+          // Find matching pending message
+          const matched = usePendingMessages
+            .getState()
+            .pending.find(
+              (p) =>
+                p.userId === payload.new.user_id &&
+                p.content === payload.new.content,
+            );
+
+          // Fetch profile
           const { data: profile } = await supabase
             .from("profiles")
             .select("id, username, display_name, avatar_url")
             .eq("id", payload.new.user_id)
             .single();
-          setMessages((prev) => [
-            ...prev,
-            {
-              ...(payload.new as Message),
-              profiles: profile,
-              reactions: [],
-              replyCount: 0,
-            },
-          ]);
+
+          // Add real message first
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === payload.new.id)) return prev;
+            return [
+              ...prev,
+              {
+                ...(payload.new as Message),
+                profiles: profile,
+                reactions: [],
+                replyCount: 0,
+              },
+            ];
+          });
+
+          // Then fade out and remove pending after real message renders
+          if (matched) {
+            setFadingOut((prev) => new Set([...prev, matched.tempId]));
+            setTimeout(() => {
+              removePending(matched.tempId);
+              setFadingOut((prev) => {
+                const next = new Set(prev);
+                next.delete(matched.tempId);
+                return next;
+              });
+            }, 300);
+          }
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channelId]);
+  }, [channelId, removePending]);
 
   useEffect(() => {
     const channel = supabase
@@ -253,15 +291,17 @@ export default function MessageFeed({
   const topLevelMessages = messages.filter(
     (m) => !(m.is_ai && m.parent_message_id),
   );
+  const pendingForChannel = pending.filter((p) => p.channelId === channelId);
 
   return (
     <div className="flex-1 overflow-y-auto flex flex-col bg-black">
-      {messages.length === 0 && (
+      {messages.length === 0 && pendingForChannel.length === 0 && (
         <div className="flex items-center justify-center h-full">
           <p className="text-sm text-zinc-700">Beginning of #{channelName}</p>
         </div>
       )}
 
+      {/* Confirmed messages */}
       {topLevelMessages.map((message, index) => {
         const grouped = isGrouped(topLevelMessages, index);
         if (message.is_ai)
@@ -362,6 +402,36 @@ export default function MessageFeed({
           </div>
         );
       })}
+
+      {/* Optimistic pending messages — fade out when confirmed */}
+      {pendingForChannel.map((p) => (
+        <div
+          key={p.tempId}
+          className="flex flex-col border-b border-zinc-800/20 transition-opacity duration-300"
+          style={{ opacity: fadingOut.has(p.tempId) ? 0 : 0.5 }}
+        >
+          <div className="flex items-start gap-3 px-4 pt-3 pb-2">
+            <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400 shrink-0 mt-0.5 animate-pulse">
+              {(p.displayName ?? p.username)[0]?.toUpperCase()}
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex items-baseline gap-2 mb-0.5">
+                <span className="text-sm font-medium text-zinc-100">
+                  {p.displayName ?? p.username}
+                </span>
+                <span className="text-[10px] text-zinc-600">
+                  {new Date(p.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+              <MessageContent content={p.content} />
+            </div>
+          </div>
+        </div>
+      ))}
+
       <div ref={bottomRef} />
     </div>
   );

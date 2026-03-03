@@ -2,30 +2,10 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
-
-// Aliases people commonly type in fences
-const LANG_MAP: Record<string, string> = {
-  ts: "typescript",
-  tsx: "tsx",
-  js: "javascript",
-  jsx: "jsx",
-  sh: "bash",
-  shell: "bash",
-  zsh: "bash",
-  py: "python",
-  yml: "yaml",
-  rs: "rust",
-};
-
-function resolveLanguage(lang: string | null): string {
-  if (!lang) return "plaintext";
-  const normalized = lang.toLowerCase();
-  return LANG_MAP[normalized] ?? normalized;
-}
 
 function CodeBlock({
   language,
@@ -35,7 +15,6 @@ function CodeBlock({
   children: string;
 }) {
   const [copied, setCopied] = useState(false);
-  const resolved = resolveLanguage(language);
 
   function handleCopy() {
     navigator.clipboard.writeText(children).then(() => {
@@ -49,7 +28,7 @@ function CodeBlock({
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-800 bg-black">
         <span className="text-[10px] text-zinc-600 font-mono">
-          {language ?? "plaintext"}
+          {language ?? "auto"}
         </span>
         <button
           onClick={handleCopy}
@@ -57,23 +36,20 @@ function CodeBlock({
         >
           {copied ? (
             <>
-              <Check size={10} />
-              Copied
+              <Check size={10} /> Copied
             </>
           ) : (
             <>
-              <Copy size={10} />
-              Copy
+              <Copy size={10} /> Copy
             </>
           )}
         </button>
       </div>
 
-      {/* Body */}
+      {/* Body — no language = auto-detect */}
       <SyntaxHighlighter
-        style={vscDarkPlus}
-        language={resolved}
-        PreTag="div"
+        style={atomOneDark}
+        language={language ?? undefined}
         useInlineStyles
         customStyle={{
           margin: 0,
