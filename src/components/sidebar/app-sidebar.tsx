@@ -7,6 +7,8 @@ import CreateChannelButton from "@/components/sidebar/create-channel-button";
 import AiPanelButton from "@/components/sidebar/ai-panel-button";
 import WorkspacePresence from "@/components/sidebar/workspace-presence";
 import SettingsOverlay from "@/components/workspace/settings-overlay";
+import { useMessageStore } from "@/stores/message-store";
+import { useUnreadStore } from "@/stores/unread-store";
 
 type Channel = { id: string; name: string };
 
@@ -37,17 +39,20 @@ export default function AppSidebar({
   const [isPending, startTransition] = useTransition();
   const [pendingChannel, setPendingChannel] = useState<string | null>(null);
 
+  const { getHasUnread, markRead } = useUnreadStore();
+
   function openSettings(section: "profile" | "workspace") {
     setSettingsSection(section);
     setSettingsOpen(true);
   }
 
-  function handleChannelClick(e: React.MouseEvent, channelName: string) {
+  function handleChannelClick(e: React.MouseEvent, channel: Channel) {
     e.preventDefault();
-    if (channelName === activeChannel) return;
-    setPendingChannel(channelName);
+    if (channel.name === activeChannel) return;
+    markRead(channel.id);
+    setPendingChannel(channel.name);
     startTransition(() => {
-      router.push(`/${workspaceSlug}/${channelName}`);
+      router.push(`/${workspaceSlug}/${channel.name}`);
       setPendingChannel(null);
     });
   }
@@ -73,19 +78,33 @@ export default function AppSidebar({
             const isActive = activeChannel === channel.name;
             const isLoading = isPending && pendingChannel === channel.name;
 
+            // Get last message timestamp from cache for unread comparison
+            const cachedMessages = useMessageStore.getState().cache[channel.id];
+            const confirmedMessages = cachedMessages?.filter(
+              (m) => !m.isPending && !m.isFailed && !m.is_ai,
+            );
+            const lastMessageAt = confirmedMessages?.length
+              ? confirmedMessages[confirmedMessages.length - 1].created_at
+              : null;
+
+            const hasUnread =
+              !isActive && getHasUnread(channel.id, lastMessageAt);
+
             return (
               <a
                 key={channel.id}
                 href={`/${workspaceSlug}/${channel.name}`}
                 title={`#${channel.name}`}
-                onClick={(e) => handleChannelClick(e, channel.name)}
+                onClick={(e) => handleChannelClick(e, channel)}
                 onMouseEnter={() => handleChannelHover(channel.name)}
                 className={`relative w-full h-10 flex items-center justify-center text-[11px] font-medium border-b border-zinc-800/40 transition-colors select-none cursor-pointer ${
                   isActive
                     ? "bg-zinc-900/60 text-zinc-100"
                     : isLoading
                       ? "bg-zinc-900/40 text-zinc-300"
-                      : "text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/30"
+                      : hasUnread
+                        ? "text-zinc-200 hover:text-zinc-100 hover:bg-zinc-900/30"
+                        : "text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/30"
                 }`}
               >
                 {/* Active indicator */}
@@ -96,7 +115,17 @@ export default function AppSidebar({
                 {isLoading && !isActive && (
                   <span className="absolute left-0 top-0 bottom-0 w-px bg-zinc-600 animate-pulse" />
                 )}
+                {/* Unread indicator — violet left bar */}
+                {hasUnread && !isLoading && (
+                  <span className="absolute left-0 top-0 bottom-0 w-px bg-violet-500" />
+                )}
+
                 {channel.name[0].toUpperCase()}
+
+                {/* Unread dot — bottom right */}
+                {hasUnread && (
+                  <span className="absolute bottom-2 right-2 w-1 h-1 rounded-full bg-violet-500" />
+                )}
               </a>
             );
           })}

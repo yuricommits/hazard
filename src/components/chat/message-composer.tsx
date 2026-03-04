@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useReplyStore } from "@/stores/reply-store";
 import { useMessageStore } from "@/stores/message-store";
@@ -23,6 +23,7 @@ export default function MessageComposer({
 }) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [, startTransition] = useTransition();
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(
     null,
@@ -63,9 +64,9 @@ export default function MessageComposer({
   }
 
   function getChannelContext(): string {
-    // Read from local cache — zero DB cost
-    const { getMessages } = useMessageStore.getState();
-    return getMessages(channelId)
+    return useMessageStore
+      .getState()
+      .getMessages(channelId)
       .filter((m) => !m.is_ai && !m.isPending && !m.isFailed)
       .slice(-10)
       .map(
@@ -107,6 +108,7 @@ export default function MessageComposer({
 
   async function sendMessage() {
     if (!message.trim() || sending) return;
+
     broadcastTyping(false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
@@ -115,7 +117,7 @@ export default function MessageComposer({
       : message.trim();
     const tempId = crypto.randomUUID();
 
-    // Add to unified list immediately — in-place, no second list
+    // Paint message immediately — highest priority
     addPending({
       tempId,
       content: text,
@@ -135,11 +137,17 @@ export default function MessageComposer({
       replyCount: 0,
     });
 
-    setMessage("");
-    clearReplyTo();
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
-    setSending(true);
+    // Low priority — runs after message is painted
+    startTransition(() => {
+      setMessage("");
+      clearReplyTo();
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
+      setSending(true);
+    });
 
+    // DB insert in background
     try {
       if (text.toLowerCase().startsWith("@hazard")) {
         const { data, error } = await supabase
@@ -178,7 +186,7 @@ export default function MessageComposer({
     } catch {
       failMessage(channelId, tempId);
     } finally {
-      setSending(false);
+      startTransition(() => setSending(false));
     }
   }
 

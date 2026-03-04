@@ -4,6 +4,7 @@ import ThreadPanel from "@/components/chat/thread-panel";
 import AiPanel from "@/components/chat/ai-panel";
 import AppSidebar from "@/components/sidebar/app-sidebar";
 import MembersPanel from "@/components/chat/members-panel";
+import ChannelPrefetcher from "@/components/chat/channel-prefetcher";
 
 export default async function WorkspaceLayout({
   children,
@@ -42,6 +43,9 @@ export default async function WorkspaceLayout({
 
   return (
     <div className="flex h-screen bg-black overflow-hidden">
+      {/* Invisible — prefetches all channel messages into Zustand cache */}
+      <ChannelPrefetcher channels={channels ?? []} />
+
       <AppSidebar
         workspaceName={workspace.name}
         workspaceSlug={slug}

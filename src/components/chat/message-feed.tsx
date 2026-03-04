@@ -12,6 +12,7 @@ import MessageContextMenu from "@/components/chat/message-context-menu";
 import { usePresenceStore } from "@/stores/presence-store";
 import { useMessageStore, Message } from "@/stores/message-store";
 import { useProfileCache } from "@/stores/profile-cache-store";
+import { useUnreadStore } from "@/stores/unread-store";
 import { MessageSquare, RefreshCw } from "lucide-react";
 
 const supabase = createClient();
@@ -54,6 +55,7 @@ export default function MessageFeed({
   const { setReplyTo } = useReplyStore();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
   const { seedProfiles, fetchProfile } = useProfileCache();
+  const { markRead } = useUnreadStore();
 
   const {
     seedChannel,
@@ -66,7 +68,7 @@ export default function MessageFeed({
     retryMessage,
   } = useMessageStore();
 
-  // Stable selectors — ?? [] outside selector to avoid new reference each render
+  // Stable selectors — ?? [] outside selector to avoid infinite loop
   const messages = useMessageStore((s) => s.cache[channelId]) ?? [];
   const isCached = useMessageStore((s) => !!s.loaded[channelId]);
 
@@ -86,6 +88,9 @@ export default function MessageFeed({
     } else {
       refreshChannel(channelId, initialMessages);
     }
+
+    // Mark channel as read when opened
+    markRead(channelId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
@@ -157,13 +162,15 @@ export default function MessageFeed({
             reactions: [],
             replyCount: 0,
           });
+          // Mark as read since user is actively viewing this channel
+          markRead(channelId);
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channelId, fetchProfile, realtimeInsert, incrementReplyCount]);
+  }, [channelId, fetchProfile, realtimeInsert, incrementReplyCount, markRead]);
 
   // Realtime reactions
   useEffect(() => {
