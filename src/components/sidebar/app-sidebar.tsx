@@ -48,6 +48,7 @@ export default function AppSidebar({
     setPendingChannel(channelName);
     startTransition(() => {
       router.push(`/${workspaceSlug}/${channelName}`);
+      setPendingChannel(null);
     });
   }
 

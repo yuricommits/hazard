@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useBootStore } from "@/stores/boot-store";
 
 const BOOT_LINES = [
   { text: "HAZARD_OS v2.1.0 — INITIALIZING", delay: 0 },
-  { text: "CORE_STREAM ········ ACTIVE", delay: 120 },
-  { text: "ESTABLISHING SECURE CHANNEL", delay: 240 },
-  { text: "SYNCING MESSAGE HISTORY", delay: 380 },
-  { text: "LOADING WORKSPACE CONTEXT", delay: 520 },
-  { text: "DECRYPTING THREAD INDEX", delay: 660 },
-  { text: "PRESENCE ENGINE ···· ONLINE", delay: 800 },
-  { text: "NEURAL INTERFACE ··· READY", delay: 940 },
+  { text: "CORE_STREAM ········ ACTIVE", delay: 80 },
+  { text: "SYNCING MESSAGE HISTORY", delay: 160 },
+  { text: "PRESENCE ENGINE ···· ONLINE", delay: 240 },
+  { text: "NEURAL INTERFACE ··· READY", delay: 320 },
 ];
 
 function BootLine({ text, delay }: { text: string; delay: number }) {
@@ -24,7 +22,7 @@ function BootLine({ text, delay }: { text: string; delay: number }) {
 
   useEffect(() => {
     if (!visible || chars >= text.length) return;
-    const t = setTimeout(() => setChars((c) => c + 1), 18);
+    const t = setTimeout(() => setChars((c) => c + 1), 12);
     return () => clearTimeout(t);
   }, [visible, chars, text.length]);
 
@@ -45,24 +43,43 @@ function BootLine({ text, delay }: { text: string; delay: number }) {
   );
 }
 
+function QuickLoader() {
+  return (
+    <div className="flex-1 flex flex-col justify-start bg-black h-full">
+      <div className="relative h-px w-full overflow-hidden">
+        <div className="absolute inset-0 bg-zinc-800" />
+        <div
+          className="absolute top-0 h-full w-32"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, rgba(139,92,246,0.8), rgba(255,255,255,0.9), rgba(139,92,246,0.8), transparent)",
+            animation: "plasma 1s ease-in-out infinite",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function ChannelLoading() {
+  const { hasBooted, setBooted } = useBootStore();
   const [glowIntensity, setGlowIntensity] = useState(0.5);
-  const [done, setDone] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setGlowIntensity((g) => (g === 0.5 ? 0.9 : 0.5));
-    }, 900);
-    const t = setTimeout(() => setDone(true), 1400);
+    }, 700);
+    const t = setTimeout(() => setBooted(), 600);
     return () => {
       clearInterval(interval);
       clearTimeout(t);
     };
-  }, []);
+  }, [setBooted]);
+
+  if (hasBooted) return <QuickLoader />;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center bg-black h-full gap-8">
-      {/* Diamond */}
       <div className="relative flex items-center justify-center">
         <div
           className="w-3 h-3 bg-white rotate-45 transition-all duration-700"
@@ -78,22 +95,18 @@ export default function ChannelLoading() {
         />
       </div>
 
-      {/* Terminal lines */}
       <div className="flex flex-col gap-2 w-64">
         {BOOT_LINES.map((line) => (
           <BootLine key={line.text} text={line.text} delay={line.delay} />
         ))}
       </div>
 
-      {/* Connected indicator */}
-      {done && (
-        <div className="flex items-center gap-2 animate-pulse">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span className="text-[10px] text-zinc-600 font-mono tracking-widest uppercase">
-            Stream Connected
-          </span>
-        </div>
-      )}
+      <div className="flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        <span className="text-[10px] text-zinc-600 font-mono tracking-widest uppercase">
+          Stream Connected
+        </span>
+      </div>
     </div>
   );
 }

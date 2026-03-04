@@ -10,44 +10,13 @@ import { getOrCreateThread } from "@/lib/supabase/threads";
 import ReactionButton from "@/components/chat/reaction-button";
 import MessageContextMenu from "@/components/chat/message-context-menu";
 import { usePresenceStore } from "@/stores/presence-store";
-import { usePendingMessages } from "@/stores/pending-messages-store";
+import { useMessageStore, Message } from "@/stores/message-store";
 import { useProfileCache } from "@/stores/profile-cache-store";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, RefreshCw } from "lucide-react";
 
 const supabase = createClient();
 
-type Profile = {
-  id: string;
-  username: string;
-  display_name: string | null;
-  avatar_url: string | null;
-};
-
-type Reaction = {
-  id: string;
-  emoji: string;
-  user_id: string;
-};
-
-type Message = {
-  id: string;
-  content: string;
-  created_at: string;
-  user_id: string;
-  channel_id: string;
-  thread_id: string | null;
-  parent_message_id: string | null;
-  is_ai: boolean;
-  profiles: Profile | null;
-  reactions: Reaction[];
-  replyCount: number;
-};
-
-type ContextMenu = {
-  x: number;
-  y: number;
-  message: Message;
-};
+type ContextMenu = { x: number; y: number; message: Message };
 
 function isGrouped(messages: Message[], index: number): boolean {
   if (index === 0) return false;
@@ -55,6 +24,7 @@ function isGrouped(messages: Message[], index: number): boolean {
   const curr = messages[index];
   if (prev.user_id !== curr.user_id) return false;
   if (prev.is_ai || curr.is_ai) return false;
+  if (prev.isPending || prev.isFailed) return false;
   return (
     new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime() <
     5 * 60 * 1000
@@ -76,88 +46,61 @@ export default function MessageFeed({
   initialMessages: Message[];
   currentUserId: string;
 }) {
-  const [messages, setMessages] = useState<Message[]>(
-    initialMessages.map((m) => ({ ...m, replyCount: 0 })),
-  );
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
-
   const bottomRef = useRef<HTMLDivElement>(null);
+  const prevLengthRef = useRef(0);
+
   const { openThread } = useThreadStore();
   const { setReplyTo } = useReplyStore();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
-  const { pending } = usePendingMessages();
   const { seedProfiles, fetchProfile } = useProfileCache();
 
-  // Seed cache with profiles already present in initial messages
+  const {
+    seedChannel,
+    refreshChannel,
+    realtimeInsert,
+    setReactions,
+    removeReaction,
+    incrementReplyCount,
+    toggleReaction,
+    retryMessage,
+  } = useMessageStore();
+
+  // Stable selectors — ?? [] outside selector to avoid new reference each render
+  const messages = useMessageStore((s) => s.cache[channelId]) ?? [];
+  const isCached = useMessageStore((s) => !!s.loaded[channelId]);
+
+  // Seed or refresh on channel change
   useEffect(() => {
     const profiles = initialMessages
       .map((m) => m.profiles)
-      .filter((p): p is Profile => p !== null);
+      .filter((p): p is NonNullable<typeof p> => p !== null);
     if (profiles.length) seedProfiles(profiles);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  function handleReply(message: Message) {
-    const username =
-      message.profiles?.display_name ?? message.profiles?.username ?? "Unknown";
-    setReplyTo({
-      messageId: message.id,
-      content: truncate(message.content),
-      username,
-    });
-  }
-
-  function handleContextMenu(e: React.MouseEvent, message: Message) {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, message });
-  }
-
-  async function handleReact(messageId: string, emoji: string) {
-    const msg = messages.find((m) => m.id === messageId);
-    const existing = msg?.reactions.find(
-      (r) => r.emoji === emoji && r.user_id === currentUserId,
-    );
-    if (existing) {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? {
-                ...m,
-                reactions: m.reactions.filter((r) => r.id !== existing.id),
-              }
-            : m,
-        ),
+    if (!isCached) {
+      seedChannel(channelId, initialMessages);
+      setTimeout(
+        () => bottomRef.current?.scrollIntoView({ behavior: "instant" }),
+        0,
       );
-      await supabase.from("reactions").delete().eq("id", existing.id);
     } else {
-      const temp = { id: crypto.randomUUID(), emoji, user_id: currentUserId };
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId ? { ...m, reactions: [...m.reactions, temp] } : m,
-        ),
-      );
-      await supabase
-        .from("reactions")
-        .insert({ message_id: messageId, user_id: currentUserId, emoji });
+      refreshChannel(channelId, initialMessages);
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId]);
 
-  async function handleViewThread(messageId: string) {
-    openThread(null, messageId);
-    const threadId = await getOrCreateThread(messageId, currentUserId);
-    if (threadId) useThreadStore.getState().setThreadId(threadId);
-  }
-
+  // Scroll on new messages
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "instant" });
-  }, []);
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, pending]);
+    if (messages.length > prevLengthRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevLengthRef.current = messages.length;
+  }, [messages.length]);
 
+  // Fetch reply counts in background
   useEffect(() => {
     async function fetchReplyCounts() {
-      const messageIds = messages.map((m) => m.id);
+      const messageIds = initialMessages.map((m) => m.id);
       if (!messageIds.length) return;
       const { data: threads } = await supabase
         .from("threads")
@@ -175,18 +118,17 @@ export default function MessageFeed({
         if (r.thread_id)
           countByThread[r.thread_id] = (countByThread[r.thread_id] ?? 0) + 1;
       });
-      const countByMessage: Record<string, number> = {};
       threads.forEach((t) => {
-        countByMessage[t.message_id] = countByThread[t.id] ?? 0;
+        useMessageStore
+          .getState()
+          .setReplyCount(channelId, t.message_id, countByThread[t.id] ?? 0);
       });
-      setMessages((prev) =>
-        prev.map((m) => ({ ...m, replyCount: countByMessage[m.id] ?? 0 })),
-      );
     }
     fetchReplyCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [channelId]);
 
+  // Realtime messages
   useEffect(() => {
     const channel = supabase
       .channel(`messages:${channelId}`)
@@ -199,22 +141,21 @@ export default function MessageFeed({
           filter: `channel_id=eq.${channelId}`,
         },
         async (payload) => {
-          if (payload.new.thread_id) return;
-
-          // Use cache — only fetches if this user_id is new
+          if (payload.new.thread_id) {
+            const { data: thread } = await supabase
+              .from("threads")
+              .select("message_id")
+              .eq("id", payload.new.thread_id)
+              .single();
+            if (thread) incrementReplyCount(channelId, thread.message_id);
+            return;
+          }
           const profile = await fetchProfile(payload.new.user_id);
-
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === payload.new.id)) return prev;
-            return [
-              ...prev,
-              {
-                ...(payload.new as Message),
-                profiles: profile,
-                reactions: [],
-                replyCount: 0,
-              },
-            ];
+          realtimeInsert(channelId, {
+            ...(payload.new as Message),
+            profiles: profile,
+            reactions: [],
+            replyCount: 0,
           });
         },
       )
@@ -222,43 +163,9 @@ export default function MessageFeed({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channelId, fetchProfile]);
+  }, [channelId, fetchProfile, realtimeInsert, incrementReplyCount]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel(`thread-replies:${channelId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `channel_id=eq.${channelId}`,
-        },
-        async (payload) => {
-          const threadId = payload.new.thread_id;
-          if (!threadId) return;
-          const { data: thread } = await supabase
-            .from("threads")
-            .select("message_id")
-            .eq("id", threadId)
-            .single();
-          if (!thread) return;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === thread.message_id
-                ? { ...m, replyCount: m.replyCount + 1 }
-                : m,
-            ),
-          );
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [channelId]);
-
+  // Realtime reactions
   useEffect(() => {
     const channel = supabase
       .channel(`reactions:${channelId}`)
@@ -270,66 +177,82 @@ export default function MessageFeed({
             .from("reactions")
             .select("id, emoji, user_id")
             .eq("message_id", payload.new.message_id);
-          if (!data) return;
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === payload.new.message_id
-                ? { ...msg, reactions: data }
-                : msg,
-            ),
-          );
+          if (data) setReactions(channelId, payload.new.message_id, data);
         },
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "reactions" },
-        (payload) => {
-          setMessages((prev) => {
-            const messageId = prev.find((msg) =>
-              msg.reactions.some((r) => r.id === payload.old.id),
-            )?.id;
-            if (!messageId) return prev;
-            return prev.map((msg) =>
-              msg.id === messageId
-                ? {
-                    ...msg,
-                    reactions: msg.reactions.filter(
-                      (r) => r.id !== payload.old.id,
-                    ),
-                  }
-                : msg,
-            );
-          });
-        },
+        (payload) => removeReaction(channelId, payload.old.id),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channelId]);
+  }, [channelId, setReactions, removeReaction]);
+
+  function handleReply(message: Message) {
+    const username =
+      message.profiles?.display_name ?? message.profiles?.username ?? "Unknown";
+    setReplyTo({
+      messageId: message.id,
+      content: truncate(message.content),
+      username,
+    });
+  }
+
+  function handleContextMenu(e: React.MouseEvent, message: Message) {
+    if (message.isPending || message.isFailed) return;
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, message });
+  }
+
+  async function handleReact(messageId: string, emoji: string) {
+    toggleReaction(channelId, messageId, emoji, currentUserId);
+    const msg = useMessageStore
+      .getState()
+      .getMessages(channelId)
+      .find((m) => m.id === messageId);
+    const existing = msg?.reactions.find(
+      (r) => r.emoji === emoji && r.user_id === currentUserId,
+    );
+    if (existing) {
+      await supabase.from("reactions").delete().eq("id", existing.id);
+    } else {
+      await supabase
+        .from("reactions")
+        .insert({ message_id: messageId, user_id: currentUserId, emoji });
+    }
+  }
+
+  async function handleViewThread(messageId: string) {
+    openThread(null, messageId);
+    const threadId = await getOrCreateThread(messageId, currentUserId);
+    if (threadId) useThreadStore.getState().setThreadId(threadId);
+  }
 
   const aiResponseMap = messages.reduce<Record<string, Message>>((acc, m) => {
     if (m.is_ai && m.parent_message_id) acc[m.parent_message_id] = m;
     return acc;
   }, {});
 
-  const topLevelMessages = messages.filter(
-    (m) => !(m.is_ai && m.parent_message_id),
-  );
-  const pendingForChannel = pending.filter((p) => p.channelId === channelId);
+  const topLevel = messages.filter((m) => !(m.is_ai && m.parent_message_id));
 
   return (
     <div className="flex-1 overflow-y-auto flex flex-col bg-black">
-      {messages.length === 0 && pendingForChannel.length === 0 && (
+      {topLevel.length === 0 && (
         <div className="flex items-center justify-center h-full">
           <p className="text-sm text-zinc-700">Beginning of #{channelName}</p>
         </div>
       )}
 
-      {topLevelMessages.map((message, index) => {
-        const grouped = isGrouped(topLevelMessages, index);
-        if (message.is_ai)
+      {topLevel.map((message, index) => {
+        const grouped = isGrouped(topLevel, index);
+
+        if (message.is_ai && !message.isPending) {
           return <AiMessage key={message.id} content={message.content} />;
+        }
+
         const aiResponse = aiResponseMap[message.id];
         const hasThread = message.replyCount > 0;
         const isOnline = onlineUserIds.has(message.user_id);
@@ -337,20 +260,32 @@ export default function MessageFeed({
         return (
           <div
             key={message.id}
-            className="flex flex-col border-b border-zinc-800/20 hover:bg-zinc-900/10 transition-colors"
             onContextMenu={(e) => handleContextMenu(e, message)}
+            className={`flex flex-col border-b border-zinc-800/20 transition-opacity duration-150 ${
+              message.isPending
+                ? "opacity-50"
+                : message.isFailed
+                  ? "opacity-40"
+                  : "opacity-100 hover:bg-zinc-900/10"
+            }`}
           >
             <div
-              className={`flex items-start gap-3 px-4 ${grouped ? "py-0.5" : "pt-3 pb-1"}`}
+              className={`flex items-start gap-3 px-4 ${
+                grouped ? "py-0.5" : "pt-3 pb-1"
+              }`}
             >
               {grouped ? (
                 <div className="w-8 shrink-0" />
               ) : (
                 <div className="relative shrink-0 mt-0.5">
-                  <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">
+                  <div
+                    className={`w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400 ${
+                      message.isPending ? "animate-pulse" : ""
+                    }`}
+                  >
                     {message.profiles?.display_name?.[0]?.toUpperCase() ?? "?"}
                   </div>
-                  {isOnline && (
+                  {isOnline && !message.isPending && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-black" />
                   )}
                 </div>
@@ -370,15 +305,40 @@ export default function MessageFeed({
                         minute: "2-digit",
                       })}
                     </span>
+                    {message.isPending && (
+                      <span className="text-[10px] text-zinc-700">
+                        sending…
+                      </span>
+                    )}
+                    {message.isFailed && (
+                      <span className="text-[10px] text-red-600">
+                        failed to send
+                      </span>
+                    )}
                   </div>
                 )}
+
                 <MessageContent content={message.content} />
-                <ReactionButton
-                  messageId={message.id}
-                  reactions={message.reactions ?? []}
-                  currentUserId={currentUserId}
-                />
-                {hasThread && (
+
+                {message.isFailed && message.tempId && (
+                  <button
+                    onClick={() => retryMessage(channelId, message.tempId!)}
+                    className="mt-1 flex items-center gap-1 text-[10px] text-red-600 hover:text-red-400 transition-colors"
+                  >
+                    <RefreshCw size={9} />
+                    Retry
+                  </button>
+                )}
+
+                {!message.isPending && !message.isFailed && (
+                  <ReactionButton
+                    messageId={message.id}
+                    reactions={message.reactions ?? []}
+                    currentUserId={currentUserId}
+                  />
+                )}
+
+                {hasThread && !message.isPending && (
                   <button
                     onClick={() => handleViewThread(message.id)}
                     className="mt-1.5 flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors w-fit border border-zinc-800/60 px-2 py-1 hover:border-zinc-700"
@@ -399,34 +359,6 @@ export default function MessageFeed({
           </div>
         );
       })}
-
-      {/* Optimistic pending messages */}
-      {pendingForChannel.map((p) => (
-        <div
-          key={p.tempId}
-          className="flex flex-col border-b border-zinc-800/20 opacity-50"
-        >
-          <div className="flex items-start gap-3 px-4 pt-3 pb-2">
-            <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400 shrink-0 mt-0.5 animate-pulse">
-              {(p.displayName ?? p.username)[0]?.toUpperCase()}
-            </div>
-            <div className="flex flex-col min-w-0 flex-1">
-              <div className="flex items-baseline gap-2 mb-0.5">
-                <span className="text-sm font-medium text-zinc-100">
-                  {p.displayName ?? p.username}
-                </span>
-                <span className="text-[10px] text-zinc-600">
-                  {new Date(p.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
-              <MessageContent content={p.content} />
-            </div>
-          </div>
-        </div>
-      ))}
 
       <div ref={bottomRef} />
 

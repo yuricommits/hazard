@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useReplyStore } from "@/stores/reply-store";
-import { usePendingMessages } from "@/stores/pending-messages-store";
+import { useMessageStore } from "@/stores/message-store";
 import { CornerUpLeft, X, ArrowUp } from "lucide-react";
 
 const supabase = createClient();
@@ -29,7 +29,7 @@ export default function MessageComposer({
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { replyTo, clearReplyTo } = useReplyStore();
-  const { addPending, removePending } = usePendingMessages();
+  const { addPending, confirmMessage, failMessage } = useMessageStore();
 
   useEffect(() => {
     if (replyTo) setTimeout(() => textareaRef.current?.focus(), 0);
@@ -62,28 +62,22 @@ export default function MessageComposer({
     });
   }
 
-  async function getChannelContext(): Promise<string> {
-    const { data } = await supabase
-      .from("messages")
-      .select("content, profiles(display_name, username)")
-      .eq("channel_id", channelId)
-      .is("thread_id", null)
-      .eq("is_ai", false)
-      .order("created_at", { ascending: false })
-      .limit(10);
-    if (!data?.length) return "";
-    return data
-      .reverse()
-      .map((m) => {
-        const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-        return `${profile?.display_name ?? profile?.username ?? "Unknown"}: ${m.content}`;
-      })
+  function getChannelContext(): string {
+    // Read from local cache — zero DB cost
+    const { getMessages } = useMessageStore.getState();
+    return getMessages(channelId)
+      .filter((m) => !m.is_ai && !m.isPending && !m.isFailed)
+      .slice(-10)
+      .map(
+        (m) =>
+          `${m.profiles?.display_name ?? m.profiles?.username ?? "Unknown"}: ${m.content}`,
+      )
       .join("\n");
   }
 
   async function sendAiMessage(prompt: string, parentId: string | null) {
     broadcastHazardThinking(true);
-    const channelContext = await getChannelContext();
+    const channelContext = getChannelContext();
     const response = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -121,15 +115,24 @@ export default function MessageComposer({
       : message.trim();
     const tempId = crypto.randomUUID();
 
-    // Optimistic — show instantly
+    // Add to unified list immediately — in-place, no second list
     addPending({
       tempId,
       content: text,
-      userId: currentUserId,
-      channelId,
-      createdAt: new Date().toISOString(),
-      displayName: displayName ?? null,
-      username: currentUserName,
+      user_id: currentUserId,
+      channel_id: channelId,
+      created_at: new Date().toISOString(),
+      thread_id: null,
+      parent_message_id: null,
+      is_ai: false,
+      profiles: {
+        id: currentUserId,
+        username: currentUserName,
+        display_name: displayName ?? null,
+        avatar_url: null,
+      },
+      reactions: [],
+      replyCount: 0,
     });
 
     setMessage("");
@@ -137,30 +140,46 @@ export default function MessageComposer({
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setSending(true);
 
-    if (text.toLowerCase().startsWith("@hazard")) {
-      const { data: userMsg } = await supabase
-        .from("messages")
-        .insert({
-          channel_id: channelId,
-          user_id: currentUserId,
-          content: text,
-        })
-        .select("id")
-        .single();
-      removePending(tempId); // ← clean up here
-      await sendAiMessage(text.slice(7).trim(), userMsg?.id ?? null);
-    } else {
-      await supabase
-        .from("messages")
-        .insert({
-          channel_id: channelId,
-          user_id: currentUserId,
-          content: text,
-        });
-      removePending(tempId); // ← and here
-    }
+    try {
+      if (text.toLowerCase().startsWith("@hazard")) {
+        const { data, error } = await supabase
+          .from("messages")
+          .insert({
+            channel_id: channelId,
+            user_id: currentUserId,
+            content: text,
+          })
+          .select("id");
 
-    setSending(false);
+        const realId = data?.[0]?.id;
+        if (error || !realId) {
+          failMessage(channelId, tempId);
+        } else {
+          confirmMessage(channelId, tempId, realId);
+          await sendAiMessage(text.slice(7).trim(), realId);
+        }
+      } else {
+        const { data, error } = await supabase
+          .from("messages")
+          .insert({
+            channel_id: channelId,
+            user_id: currentUserId,
+            content: text,
+          })
+          .select("id");
+
+        const realId = data?.[0]?.id;
+        if (error || !realId) {
+          failMessage(channelId, tempId);
+        } else {
+          confirmMessage(channelId, tempId, realId);
+        }
+      }
+    } catch {
+      failMessage(channelId, tempId);
+    } finally {
+      setSending(false);
+    }
   }
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
