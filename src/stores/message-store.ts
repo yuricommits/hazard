@@ -167,8 +167,18 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   realtimeInsert: (channelId, msg) => {
     set((s) => {
       const existing = s.cache[channelId] ?? [];
-      if (existing.some((m) => m.id === msg.id || m.tempId === msg.id))
-        return s;
+      const isDuplicate = existing.some(
+        (m) =>
+          // Already confirmed with this real ID
+          m.id === msg.id ||
+          // Was pending, now confirmed — tempId matches incoming real ID
+          m.tempId === msg.id ||
+          // Race condition: still pending but same user + content
+          (m.isPending &&
+            m.user_id === msg.user_id &&
+            m.content === msg.content),
+      );
+      if (isDuplicate) return s;
       return {
         cache: { ...s.cache, [channelId]: [...existing, msg] },
       };

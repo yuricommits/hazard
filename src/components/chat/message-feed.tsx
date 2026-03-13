@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useShallow } from "zustand/react/shallow";
 import MessageContent from "@/components/chat/message-content";
 import AiMessage from "@/components/chat/ai-message";
 import { useThreadStore } from "@/stores/thread-store";
@@ -57,6 +58,11 @@ export default function MessageFeed({
   const { seedProfiles, fetchProfile } = useProfileCache();
   const { markRead } = useUnreadStore();
 
+  // useShallow — only re-renders if the messages array for THIS channel changes
+  // not when any other channel updates
+  const messages = useMessageStore(useShallow((s) => s.cache[channelId] ?? []));
+  const isCached = useMessageStore((s) => !!s.loaded[channelId]);
+
   const {
     seedChannel,
     refreshChannel,
@@ -68,9 +74,42 @@ export default function MessageFeed({
     retryMessage,
   } = useMessageStore();
 
-  // Stable selectors — ?? [] outside selector to avoid infinite loop
-  const messages = useMessageStore((s) => s.cache[channelId]) ?? [];
-  const isCached = useMessageStore((s) => !!s.loaded[channelId]);
+  // Memoize derived data — only recomputes when messages change
+  const { topLevel, aiResponseMap } = useMemo(() => {
+    const aiMap = messages.reduce<Record<string, Message>>((acc, m) => {
+      if (m.is_ai && m.parent_message_id) acc[m.parent_message_id] = m;
+      return acc;
+    }, {});
+    const top = messages.filter((m) => !(m.is_ai && m.parent_message_id));
+    return { topLevel: top, aiResponseMap: aiMap };
+  }, [messages]);
+
+  // Stable refs for realtime callbacks — prevents subscription teardown on every render
+  const fetchProfileRef = useRef(fetchProfile);
+  const realtimeInsertRef = useRef(realtimeInsert);
+  const incrementReplyCountRef = useRef(incrementReplyCount);
+  const setReactionsRef = useRef(setReactions);
+  const removeReactionRef = useRef(removeReaction);
+  const markReadRef = useRef(markRead);
+
+  useEffect(() => {
+    fetchProfileRef.current = fetchProfile;
+  }, [fetchProfile]);
+  useEffect(() => {
+    realtimeInsertRef.current = realtimeInsert;
+  }, [realtimeInsert]);
+  useEffect(() => {
+    incrementReplyCountRef.current = incrementReplyCount;
+  }, [incrementReplyCount]);
+  useEffect(() => {
+    setReactionsRef.current = setReactions;
+  }, [setReactions]);
+  useEffect(() => {
+    removeReactionRef.current = removeReaction;
+  }, [removeReaction]);
+  useEffect(() => {
+    markReadRef.current = markRead;
+  }, [markRead]);
 
   // Seed or refresh on channel change
   useEffect(() => {
@@ -89,7 +128,6 @@ export default function MessageFeed({
       refreshChannel(channelId, initialMessages);
     }
 
-    // Mark channel as read when opened
     markRead(channelId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
@@ -133,7 +171,7 @@ export default function MessageFeed({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
-  // Realtime messages
+  // Realtime messages — stable, only re-subscribes when channelId changes
   useEffect(() => {
     const channel = supabase
       .channel(`messages:${channelId}`)
@@ -152,27 +190,27 @@ export default function MessageFeed({
               .select("message_id")
               .eq("id", payload.new.thread_id)
               .single();
-            if (thread) incrementReplyCount(channelId, thread.message_id);
+            if (thread)
+              incrementReplyCountRef.current(channelId, thread.message_id);
             return;
           }
-          const profile = await fetchProfile(payload.new.user_id);
-          realtimeInsert(channelId, {
+          const profile = await fetchProfileRef.current(payload.new.user_id);
+          realtimeInsertRef.current(channelId, {
             ...(payload.new as Message),
             profiles: profile,
             reactions: [],
             replyCount: 0,
           });
-          // Mark as read since user is actively viewing this channel
-          markRead(channelId);
+          markReadRef.current(channelId);
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channelId, fetchProfile, realtimeInsert, incrementReplyCount, markRead]);
+  }, [channelId]); // ← only channelId, no unstable function deps
 
-  // Realtime reactions
+  // Realtime reactions — stable
   useEffect(() => {
     const channel = supabase
       .channel(`reactions:${channelId}`)
@@ -184,66 +222,74 @@ export default function MessageFeed({
             .from("reactions")
             .select("id, emoji, user_id")
             .eq("message_id", payload.new.message_id);
-          if (data) setReactions(channelId, payload.new.message_id, data);
+          if (data)
+            setReactionsRef.current(channelId, payload.new.message_id, data);
         },
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "reactions" },
-        (payload) => removeReaction(channelId, payload.old.id),
+        (payload) => removeReactionRef.current(channelId, payload.old.id),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channelId, setReactions, removeReaction]);
+  }, [channelId]); // ← only channelId
 
-  function handleReply(message: Message) {
-    const username =
-      message.profiles?.display_name ?? message.profiles?.username ?? "Unknown";
-    setReplyTo({
-      messageId: message.id,
-      content: truncate(message.content),
-      username,
-    });
-  }
+  const handleReply = useCallback(
+    (message: Message) => {
+      const username =
+        message.profiles?.display_name ??
+        message.profiles?.username ??
+        "Unknown";
+      setReplyTo({
+        messageId: message.id,
+        content: truncate(message.content),
+        username,
+      });
+    },
+    [setReplyTo],
+  );
 
-  function handleContextMenu(e: React.MouseEvent, message: Message) {
-    if (message.isPending || message.isFailed) return;
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, message });
-  }
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, message: Message) => {
+      if (message.isPending || message.isFailed) return;
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY, message });
+    },
+    [],
+  );
 
-  async function handleReact(messageId: string, emoji: string) {
-    toggleReaction(channelId, messageId, emoji, currentUserId);
-    const msg = useMessageStore
-      .getState()
-      .getMessages(channelId)
-      .find((m) => m.id === messageId);
-    const existing = msg?.reactions.find(
-      (r) => r.emoji === emoji && r.user_id === currentUserId,
-    );
-    if (existing) {
-      await supabase.from("reactions").delete().eq("id", existing.id);
-    } else {
-      await supabase
-        .from("reactions")
-        .insert({ message_id: messageId, user_id: currentUserId, emoji });
-    }
-  }
+  const handleReact = useCallback(
+    async (messageId: string, emoji: string) => {
+      toggleReaction(channelId, messageId, emoji, currentUserId);
+      const msg = useMessageStore
+        .getState()
+        .getMessages(channelId)
+        .find((m) => m.id === messageId);
+      const existing = msg?.reactions.find(
+        (r) => r.emoji === emoji && r.user_id === currentUserId,
+      );
+      if (existing) {
+        await supabase.from("reactions").delete().eq("id", existing.id);
+      } else {
+        await supabase
+          .from("reactions")
+          .insert({ message_id: messageId, user_id: currentUserId, emoji });
+      }
+    },
+    [channelId, currentUserId, toggleReaction],
+  );
 
-  async function handleViewThread(messageId: string) {
-    openThread(null, messageId);
-    const threadId = await getOrCreateThread(messageId, currentUserId);
-    if (threadId) useThreadStore.getState().setThreadId(threadId);
-  }
-
-  const aiResponseMap = messages.reduce<Record<string, Message>>((acc, m) => {
-    if (m.is_ai && m.parent_message_id) acc[m.parent_message_id] = m;
-    return acc;
-  }, {});
-
-  const topLevel = messages.filter((m) => !(m.is_ai && m.parent_message_id));
+  const handleViewThread = useCallback(
+    async (messageId: string) => {
+      openThread(null, messageId);
+      const threadId = await getOrCreateThread(messageId, currentUserId);
+      if (threadId) useThreadStore.getState().setThreadId(threadId);
+    },
+    [currentUserId, openThread],
+  );
 
   return (
     <div className="flex-1 overflow-y-auto flex flex-col bg-black">
